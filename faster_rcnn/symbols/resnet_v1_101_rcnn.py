@@ -806,15 +806,18 @@ class resnet_v1_101_rcnn(Symbol):
                                                                roi_per_img=cfg.TRAIN.BATCH_ROIS_OHEM,
                                                                cls_score=cls_score, bbox_pred=bbox_pred, labels=label,
                                                                bbox_targets=bbox_target, bbox_weights=bbox_weight, overlaps=overlaps)
-                cls_prob = overlaps_ohem * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=labels_ohem,
-                                                normalization='valid', use_ignore=True, ignore_label=-1)
+
+                overlaps_ohem = mx.sym.Reshape(data=overlaps_ohem, shape=(-1, 1), name='ohem_overlap_reshape')
+                cls_prob = mx.sym.broadcast_mul(overlaps_ohem, mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=labels_ohem,
+                                                normalization='valid', use_ignore=True, ignore_label=-1))
                 bbox_loss_ = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                                   data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_,
                                             grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS_OHEM)
                 rcnn_label = labels_ohem
             else:
-                cls_prob = mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
+                overlaps = mx.sym.Reshape(data=overlaps, shape=(-1, 1), name='overlap_reshape')
+                cls_prob = mx.sym.broadcast_mul(overlaps, mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid'))
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)

@@ -39,7 +39,7 @@ class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
         per_roi_loss_cls = np.reshape(per_roi_loss_cls, newshape=(-1,))
 
         # overlaps
-        overaps_ohem = (np.abs(overlaps - 0.5) + 0.5) * 0.8 + 0.2
+        overaps_ohem = overlaps
         per_roi_loss_bbox = bbox_weights * mx.nd.smooth_l1((bbox_pred - bbox_targets), scalar=1.0)
         per_roi_loss_bbox = mx.nd.sum(per_roi_loss_bbox, axis=1).asnumpy()
 
