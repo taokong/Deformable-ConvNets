@@ -30,6 +30,7 @@ class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
         labels       = in_data[2].asnumpy()
         bbox_targets = in_data[3]
         bbox_weights = in_data[4]
+        overlaps     = in_data[5].asnumpy()
 
         per_roi_loss_cls = mx.nd.SoftmaxActivation(cls_score) + 1e-14
         per_roi_loss_cls = per_roi_loss_cls.asnumpy()
@@ -37,19 +38,24 @@ class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
         per_roi_loss_cls = -1 * np.log(per_roi_loss_cls)
         per_roi_loss_cls = np.reshape(per_roi_loss_cls, newshape=(-1,))
 
+        # overlaps
+        overaps_ohem = (np.abs(overlaps - 0.5) + 0.5) * 0.8 + 0.2
         per_roi_loss_bbox = bbox_weights * mx.nd.smooth_l1((bbox_pred - bbox_targets), scalar=1.0)
         per_roi_loss_bbox = mx.nd.sum(per_roi_loss_bbox, axis=1).asnumpy()
 
-        top_k_per_roi_loss = np.argsort(per_roi_loss_cls + per_roi_loss_bbox)
+        top_k_per_roi_loss = np.argsort(overaps_ohem * per_roi_loss_cls + per_roi_loss_bbox)
         labels_ohem = labels
         labels_ohem[top_k_per_roi_loss[::-1][self._roi_per_img:]] = -1
         bbox_weights_ohem = bbox_weights.asnumpy()
         bbox_weights_ohem[top_k_per_roi_loss[::-1][self._roi_per_img:]] = 0
 
+
+
         labels_ohem = mx.nd.array(labels_ohem)
         bbox_weights_ohem = mx.nd.array(bbox_weights_ohem)
+        overaps_ohem = mx.nd.array(overaps_ohem)
 
-        for ind, val in enumerate([labels_ohem, bbox_weights_ohem]):
+        for ind, val in enumerate([labels_ohem, bbox_weights_ohem, overaps_ohem]):
             self.assign(out_data[ind], req[ind], val)
 
 
@@ -67,17 +73,17 @@ class BoxAnnotatorOHEMProp(mx.operator.CustomOpProp):
         self._roi_per_img = int(roi_per_img)
 
     def list_arguments(self):
-        return ['cls_score', 'bbox_pred', 'labels', 'bbox_targets', 'bbox_weights']
+        return ['cls_score', 'bbox_pred', 'labels', 'bbox_targets', 'bbox_weights', 'overlaps']
 
     def list_outputs(self):
-        return ['labels_ohem', 'bbox_weights_ohem']
+        return ['labels_ohem', 'bbox_weights_ohem', 'overlaps_ohem']
 
     def infer_shape(self, in_shape):
         labels_shape = in_shape[2]
         bbox_weights_shape = in_shape[4]
 
         return in_shape, \
-               [labels_shape, bbox_weights_shape]
+               [labels_shape, bbox_weights_shape, labels_shape]
 
     def create_operator(self, ctx, shapes, dtypes):
         return BoxAnnotatorOHEMOperator(self._num_classes, self._num_reg_classes, self._roi_per_img)

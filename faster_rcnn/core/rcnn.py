@@ -169,6 +169,9 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     labels[fg_rois_per_this_image:] = 0
     rois = rois[keep_indexes]
 
+    # add overlaps
+    overlaps = overlaps[keep_indexes]
+
     # load or compute bbox_target
     if bbox_targets is not None:
         bbox_target_data = bbox_targets[keep_indexes, :]
@@ -182,5 +185,5 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     bbox_targets, bbox_weights = \
         expand_bbox_regression_targets(bbox_target_data, num_classes, cfg)
 
-    return rois, labels, bbox_targets, bbox_weights
+    return rois, labels, bbox_targets, bbox_weights, overlaps
 

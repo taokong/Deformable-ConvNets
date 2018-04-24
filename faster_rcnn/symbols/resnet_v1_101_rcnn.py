@@ -752,7 +752,7 @@ class resnet_v1_101_rcnn(Symbol):
                     threshold=cfg.TRAIN.RPN_NMS_THRESH, rpn_min_size=cfg.TRAIN.RPN_MIN_SIZE)
             # ROI proposal target
             gt_boxes_reshape = mx.sym.Reshape(data=gt_boxes, shape=(-1, 5), name='gt_boxes_reshape')
-            rois, label, bbox_target, bbox_weight = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
+            rois, label, bbox_target, bbox_weight, overlaps = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
                                                                   op_type='proposal_target',
                                                                   num_classes=num_reg_classes,
                                                                   batch_images=cfg.TRAIN.BATCH_IMAGES,
@@ -801,12 +801,12 @@ class resnet_v1_101_rcnn(Symbol):
 
         if is_train:
             if cfg.TRAIN.ENABLE_OHEM:
-                labels_ohem, bbox_weights_ohem = mx.sym.Custom(op_type='BoxAnnotatorOHEM', num_classes=num_classes,
+                labels_ohem, bbox_weights_ohem, overlaps_ohem = mx.sym.Custom(op_type='BoxAnnotatorOHEM', num_classes=num_classes,
                                                                num_reg_classes=num_reg_classes,
                                                                roi_per_img=cfg.TRAIN.BATCH_ROIS_OHEM,
                                                                cls_score=cls_score, bbox_pred=bbox_pred, labels=label,
-                                                               bbox_targets=bbox_target, bbox_weights=bbox_weight)
-                cls_prob = mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=labels_ohem,
+                                                               bbox_targets=bbox_target, bbox_weights=bbox_weight, overlaps=overlaps)
+                cls_prob = overlaps_ohem * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=labels_ohem,
                                                 normalization='valid', use_ignore=True, ignore_label=-1)
                 bbox_loss_ = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                                   data=(bbox_pred - bbox_target))

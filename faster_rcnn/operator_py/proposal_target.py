@@ -56,7 +56,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # Sanity check: single batch only
         assert np.all(all_rois[:, 0] == 0), 'Only single item batches are supported'
 
-        rois, labels, bbox_targets, bbox_weights = \
+        rois, labels, bbox_targets, bbox_weights, overlaps = \
             sample_rois(all_rois, fg_rois_per_image, rois_per_image, self._num_classes, self._cfg, gt_boxes=gt_boxes)
 
         if DEBUG:
@@ -93,7 +93,7 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
         return ['rois', 'gt_boxes']
 
     def list_outputs(self):
-        return ['rois_output', 'label', 'bbox_target', 'bbox_weight']
+        return ['rois_output', 'label', 'bbox_target', 'bbox_weight', 'overlaps']
 
     def infer_shape(self, in_shape):
         rpn_rois_shape = in_shape[0]
@@ -107,7 +107,7 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
         bbox_weight_shape = (rois, self._num_classes * 4)
 
         return [rpn_rois_shape, gt_boxes_shape], \
-               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape]
+               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape, output_rois_shape]
 
     def create_operator(self, ctx, shapes, dtypes):
         return ProposalTargetOperator(self._num_classes, self._batch_images, self._batch_rois, self._cfg, self._fg_fraction)
