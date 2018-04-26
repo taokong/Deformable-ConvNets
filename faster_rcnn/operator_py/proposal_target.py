@@ -77,7 +77,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # for i in range(len(overlaps)):
         #     overlaps_out[i, :] = overlaps[i]
 
-        # 4. generate weights for each class
+        # 4. generate laplace weights for each class
         mean = 0.5
         sigma = 0.12
         b = 0.5
