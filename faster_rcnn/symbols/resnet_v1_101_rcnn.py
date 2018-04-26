@@ -816,8 +816,9 @@ class resnet_v1_101_rcnn(Symbol):
                                             grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS_OHEM)
                 rcnn_label = labels_ohem
             else:
-                overlaps = mx.sym.Reshape(data=overlaps, shape=(-1, 1), name='overlap_reshape')
-                cls_prob = mx.sym.broadcast_mul(overlaps, mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid'))
+                # need to change
+                # overlaps = mx.sym.Reshape(data=overlaps, shape=(-1, 1), name='overlap_reshape')
+                cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)

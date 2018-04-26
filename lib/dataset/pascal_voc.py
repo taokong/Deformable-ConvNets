@@ -429,28 +429,24 @@ class PascalVOC(IMDB):
         print 'VOC07 metric? ' + ('Y' if use_07_metric else 'No')
         info_str += 'VOC07 metric? ' + ('Y' if use_07_metric else 'No')
         info_str += '\n'
-        for cls_ind, cls in enumerate(self.classes):
-            if cls == '__background__':
-                continue
-            filename = self.get_result_file_template().format(cls)
-            rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
-                                     ovthresh=0.5, use_07_metric=use_07_metric)
-            aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
-            info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
-        print('Mean AP@0.5 = {:.4f}'.format(np.mean(aps)))
-        info_str += 'Mean AP@0.5 = {:.4f}\n\n'.format(np.mean(aps))
-        # @0.7
-        aps = []
-        for cls_ind, cls in enumerate(self.classes):
-            if cls == '__background__':
-                continue
-            filename = self.get_result_file_template().format(cls)
-            rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
-                                     ovthresh=0.7, use_07_metric=use_07_metric)
-            aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
-            info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
-        print('Mean AP@0.7 = {:.4f}'.format(np.mean(aps)))
-        info_str += 'Mean AP@0.7 = {:.4f}'.format(np.mean(aps))
+
+        ious = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+        map = []
+        for iou in ious:
+            aps = []
+            for cls_ind, cls in enumerate(self.classes):
+                if cls == '__background__':
+                    continue
+                filename = self.get_result_file_template().format(cls)
+                rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
+                                         ovthresh=iou, use_07_metric=use_07_metric)
+                aps += [ap]
+                # print('AP for {} = {:.4f}'.format(cls, ap))
+                # info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
+            print('Mean AP@{:2f} = {:.4f}'.format(iou, np.mean(aps)))
+            info_str += 'Mean AP@{:2f} = {:.4f}\n\n'.format(iou, np.mean(aps))
+
+            map += [np.mean(aps)]
+        print('Mean AP@0.50:0.95 = {:.4f}'.format(np.mean(map)))
+
         return info_str
