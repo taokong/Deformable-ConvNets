@@ -132,9 +132,9 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     :return: (labels, rois, bbox_targets, bbox_weights)
     """
     if labels is None:
-        overlaps = bbox_overlaps(rois[:, 1:].astype(np.float), gt_boxes[:, :4].astype(np.float))
-        gt_assignment = overlaps.argmax(axis=1)
-        overlaps = overlaps.max(axis=1)
+        overlaps_matrix = bbox_overlaps(rois[:, 1:].astype(np.float), gt_boxes[:, :4].astype(np.float))
+        gt_assignment = overlaps_matrix.argmax(axis=1)
+        overlaps = overlaps_matrix.max(axis=1)
         labels = gt_boxes[gt_assignment, 4]
 
     # foreground RoI with FG_THRESH overlap
@@ -169,6 +169,16 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     labels[fg_rois_per_this_image:] = 0
     rois = rois[keep_indexes]
 
+    # add overlaps
+    overlaps = overlaps[keep_indexes]
+    overlaps_out = np.zeros((len(keep_indexes), num_classes), dtype=np.float32)
+    gt_inds = gt_boxes[:, 4].astype(np.int32)
+    for i, index in enumerate(keep_indexes):
+        # get overlaps
+        overlaps_this_box = overlaps_matrix[int(index), :]
+        overlaps_out[i, gt_inds] = overlaps_this_box
+        overlaps_out[i, 0] = 1 - np.amax(overlaps_this_box)
+
     # load or compute bbox_target
     if bbox_targets is not None:
         bbox_target_data = bbox_targets[keep_indexes, :]
@@ -182,5 +192,5 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     bbox_targets, bbox_weights = \
         expand_bbox_regression_targets(bbox_target_data, num_classes, cfg)
 
-    return rois, labels, bbox_targets, bbox_weights
+    return rois, labels, bbox_targets, bbox_weights, overlaps, overlaps_out
 

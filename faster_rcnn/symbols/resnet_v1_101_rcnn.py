@@ -706,6 +706,7 @@ class resnet_v1_101_rcnn(Symbol):
             rpn_label = mx.sym.Variable(name='label')
             rpn_bbox_target = mx.sym.Variable(name='bbox_target')
             rpn_bbox_weight = mx.sym.Variable(name='bbox_weight')
+
         else:
             data = mx.sym.Variable(name="data")
             im_info = mx.sym.Variable(name="im_info")

@@ -55,8 +55,17 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # Sanity check: single batch only
         assert np.all(all_rois[:, 0] == 0), 'Only single item batches are supported'
 
-        rois, labels, bbox_targets, bbox_weights = \
+        rois, labels, bbox_targets, bbox_weights, overlaps, overlaps_matrix = \
             sample_rois(all_rois, fg_rois_per_image, rois_per_image, self._num_classes, self._cfg, gt_boxes=gt_boxes)
+
+        # 3. laplace
+        mean = 0.5
+        sigma = 0.12
+        b = 0.5
+        overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
+        overlaps_out = np.ones((len(overlaps), self._num_classes))
+        for i in range(len(overlaps)):
+            overlaps_out[i, :] = overlaps[i]
 
         if DEBUG:
             print "labels=", labels
@@ -70,7 +79,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
             print 'num bg avg: {}'.format(self._bg_num / self._count)
             print 'ratio: {:.3f}'.format(float(self._fg_num) / float(self._bg_num))
 
-        for ind, val in enumerate([rois, labels, bbox_targets, bbox_weights]):
+        for ind, val in enumerate([rois, labels, bbox_targets, bbox_weights, overlaps_out]):
             self.assign(out_data[ind], req[ind], val)
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
@@ -92,7 +101,7 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
         return ['rois', 'gt_boxes']
 
     def list_outputs(self):
-        return ['rois_output', 'label', 'bbox_target', 'bbox_weight']
+        return ['rois_output', 'label', 'bbox_target', 'bbox_weight', 'overlaps']
 
     def infer_shape(self, in_shape):
         rpn_rois_shape = in_shape[0]
@@ -105,8 +114,10 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
         bbox_target_shape = (rois, self._num_classes * 4)
         bbox_weight_shape = (rois, self._num_classes * 4)
 
+        overlaps_shape = (rois, self._num_classes)
+
         return [rpn_rois_shape, gt_boxes_shape], \
-               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape]
+               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape, overlaps_shape]
 
     def create_operator(self, ctx, shapes, dtypes):
         return ProposalTargetOperator(self._num_classes, self._batch_images, self._batch_rois, self._cfg, self._fg_fraction)
