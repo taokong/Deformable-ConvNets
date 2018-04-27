@@ -69,19 +69,19 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # overlaps = 1 - np.exp(-(overlaps-mean)**2 / sigma) + min_value
 
         # 3. laplace
-        # mean = 0.5
-        # sigma = 0.12
-        # b = 0.5
-        # overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
-        # overlaps_out = np.ones((len(overlaps), self._num_classes))
-        # for i in range(len(overlaps)):
-        #     overlaps_out[i, :] = overlaps[i]
-
-        # 4. generate laplace weights for each class
         mean = 0.5
         sigma = 0.12
         b = 0.5
-        overlaps_out = 1 - b * np.exp(-np.abs(overlaps_matrix-mean) / sigma)
+        overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
+        overlaps_out = np.ones((len(overlaps), self._num_classes))
+        for i in range(len(overlaps)):
+            overlaps_out[i, :] = overlaps[i]
+
+        # 4. generate laplace weights for each class
+        # mean = 0.5
+        # sigma = 0.12
+        # b = 0.5
+        # overlaps_out = 1 - b * np.exp(-np.abs(overlaps_matrix-mean) / sigma)
 
         # print overlaps_out, np.shape(overlaps_out)
 
