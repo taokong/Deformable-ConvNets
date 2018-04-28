@@ -261,7 +261,16 @@ class PascalVOC(IMDB):
             os.mkdir(res_file_folder)
 
         self.write_pascal_results(detections)
-        info = self.do_python_eval()
+        info, prob_iou_data = self.do_python_eval()
+
+        cal_dir = os.path.join(self.result_path, 'cal_probs_iou.pkl')
+        if not os.path.exists(result_dir):
+            os.mkdir(cal_dir)
+
+        with open(cal_dir, 'wb') as f:
+            cPickle.dump(prob_iou_data, f, cPickle.HIGHEST_PROTOCOL)
+
+
         return info
 
     def evaluate_segmentations(self, pred_segmentations=None):
@@ -432,15 +441,21 @@ class PascalVOC(IMDB):
 
         ious = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
         map = []
-        for iou in ious:
+        all_ious = []
+        all_probs = []
+        for i, iou in enumerate(ious):
             aps = []
             for cls_ind, cls in enumerate(self.classes):
                 if cls == '__background__':
                     continue
                 filename = self.get_result_file_template().format(cls)
-                rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
+                rec, prec, ap, ious, probs = voc_eval(filename, annopath, imageset_file, cls, annocache,
                                          ovthresh=iou, use_07_metric=use_07_metric)
                 aps += [ap]
+
+                if i == 0:
+                    all_ious += ious
+                    all_probs += probs
                 # print('AP for {} = {:.4f}'.format(cls, ap))
                 # info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
             print('Mean AP@{:2f} = {:.4f}'.format(iou, np.mean(aps)))
@@ -449,4 +464,8 @@ class PascalVOC(IMDB):
             map += [np.mean(aps)]
         print('Mean AP@0.50:0.95 = {:.4f}'.format(np.mean(map)))
 
-        return info_str
+        prob_iou_data = np.zeros((len(all_probs), 2), dtype=np.float32)
+        prob_iou_data[:, 0] = all_probs
+        prob_iou_data[:, 1] = all_ious
+
+        return info_str, prob_iou_data

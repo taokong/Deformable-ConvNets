@@ -130,6 +130,9 @@ def voc_eval(detpath, annopath, imageset_file, classname, annocache, ovthresh=0.
         bbox = bbox[sorted_inds, :]
         image_ids = [image_ids[x] for x in sorted_inds]
 
+    # add cal support for iou and prob
+    IoUs = []
+    probs = []
     # go down detections and mark true positives and false positives
     nd = len(image_ids)
     tp = np.zeros(nd)
@@ -139,6 +142,8 @@ def voc_eval(detpath, annopath, imageset_file, classname, annocache, ovthresh=0.
         bb = bbox[d, :].astype(float)
         ovmax = -np.inf
         bbgt = r['bbox'].astype(float)
+
+        score = sorted_scores[d]
 
         if bbgt.size > 0:
             # compute overlaps
@@ -160,6 +165,11 @@ def voc_eval(detpath, annopath, imageset_file, classname, annocache, ovthresh=0.
             ovmax = np.max(overlaps)
             jmax = np.argmax(overlaps)
 
+            IoUs += [ovmax]
+            probs += [score]
+
+
+
         if ovmax > ovthresh:
             if not r['difficult'][jmax]:
                 if not r['det'][jmax]:
@@ -178,7 +188,7 @@ def voc_eval(detpath, annopath, imageset_file, classname, annocache, ovthresh=0.
     prec = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
     ap = voc_ap(rec, prec, use_07_metric)
 
-    return rec, prec, ap
+    return rec, prec, ap, IoUs, probs
 
 
 def voc_eval_sds(det_file, seg_file, devkit_path, image_list, cls_name, cache_dir,
