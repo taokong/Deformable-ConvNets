@@ -843,7 +843,7 @@ class resnet_v1_101_rcnn(Symbol):
                 cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
             else:
                 cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
-                
+
             cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes),
                                       name='cls_prob_reshape')
             bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
