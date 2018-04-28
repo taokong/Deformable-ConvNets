@@ -65,7 +65,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
         overlaps_out = np.ones((len(overlaps), self._num_classes))
         for i in range(len(overlaps)):
-            overlaps_out[i, :] = overlaps[i]
+            overlaps_out[i, :] = 1 # overlaps[i]
 
         if DEBUG:
             print "labels=", labels

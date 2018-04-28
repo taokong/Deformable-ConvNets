@@ -25,7 +25,7 @@ from mxnet import metric
 from .DataParallelExecutorGroup import DataParallelExecutorGroup
 from mxnet import ndarray as nd
 from mxnet import optimizer as opt
-
+import sys
 
 class Module(BaseModule):
     """Module is a basic module that wrap a `Symbol`. It is functionally the same
@@ -971,12 +971,16 @@ class MutableModule(BaseModule):
         for epoch in range(begin_epoch, num_epoch):
             tic = time.time()
             eval_metric.reset()
+            ct = 0
             for nbatch, data_batch in enumerate(train_data):
                 if monitor is not None:
                     monitor.tic()
                 self.forward_backward(data_batch)
                 self.update()
-                self.update_metric(eval_metric, data_batch.label)
+                ct = ct + 1
+                if ct % 20 == 0:
+                    self.update_metric(eval_metric, data_batch.label)
+                    sys.stdout.flush()
 
                 if monitor is not None:
                     monitor.toc_print()
