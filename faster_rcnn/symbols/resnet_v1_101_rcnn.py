@@ -839,7 +839,11 @@ class resnet_v1_101_rcnn(Symbol):
                                        name='bbox_loss_reshape')
             group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
         else:
-            cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
+            if cfg.SIGMOID:
+                cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
+            else:
+                cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
+                
             cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes),
                                       name='cls_prob_reshape')
             bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
