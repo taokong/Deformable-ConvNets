@@ -12,7 +12,7 @@ from utils.symbol import Symbol
 from operator_py.proposal import *
 from operator_py.proposal_target import *
 from operator_py.box_annotator_ohem import *
-
+from operator_py.sigmoid_output import *
 
 class resnet_v1_101_rcnn(Symbol):
     def __init__(self):
@@ -818,8 +818,14 @@ class resnet_v1_101_rcnn(Symbol):
                 rcnn_label = labels_ohem
             else:
                 # need to change
-                # overlaps = mx.sym.Reshape(data=overlaps, shape=(-1, 1), name='overlap_reshape')
-                cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
+                if cfg.SIGMOID:
+                    label_one_hot = mx.symbol.one_hot(indices=label, depth=num_classes, name='one_hot')
+                    cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
+                    cls_prob = overlaps * mx.sym.Custom(op_type='SigmoidOutput', num_classes=num_classes, roi_per_img=cfg.TRAIN.BATCH_ROIS,
+                                                        prob = cls_prob, label = label_one_hot)
+                else:
+                    cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
+
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)

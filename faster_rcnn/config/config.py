@@ -47,6 +47,8 @@ config.dataset.root_path = './data'
 config.dataset.dataset_path = './data/VOCdevkit'
 config.dataset.NUM_CLASSES = 21
 
+config.IOU_WEIGHT = False
+config.SIGMOID = False
 
 config.TRAIN = edict()
 

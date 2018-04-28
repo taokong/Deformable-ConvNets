@@ -75,7 +75,10 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
         overlaps_out = np.ones((len(overlaps), self._num_classes))
         for i in range(len(overlaps)):
-            overlaps_out[i, :] = overlaps[i]
+            if self._cfg.IOU_WEIGHT:
+                overlaps_out[i, :] = overlaps[i]
+            else:
+                overlaps_out[i, :] = 1
 
         # 4. generate laplace weights for each class
         # mean = 0.5
