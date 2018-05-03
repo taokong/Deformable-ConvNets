@@ -818,11 +818,12 @@ class resnet_v1_101_rcnn(Symbol):
                 rcnn_label = labels_ohem
             else:
                 # need to change
-                if cfg.SIGMOID:
-                    label_one_hot = mx.symbol.one_hot(indices=label, depth=num_classes, name='one_hot')
-                    cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
-                    cls_prob = overlaps * mx.sym.Custom(op_type='SigmoidOutput', num_classes=num_classes, roi_per_img=cfg.TRAIN.BATCH_ROIS,
-                                                        prob = cls_prob, label = label_one_hot)
+                if cfg.SOFT_LABEL:
+                    # label_one_hot = mx.symbol.one_hot(indices=label, depth=num_classes, name='one_hot')
+                    # cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
+                    cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
+                    cls_prob = mx.sym.Custom(op_type='SigmoidOutput', num_classes=num_classes, roi_per_img=cfg.TRAIN.BATCH_ROIS,
+                                                        prob = cls_prob, label = overlaps)
                 else:
                     cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
 
@@ -839,7 +840,7 @@ class resnet_v1_101_rcnn(Symbol):
                                        name='bbox_loss_reshape')
             group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
         else:
-            if cfg.SIGMOID:
+            if cfg.SOFT_LABEL:
                 cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
             else:
                 cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)

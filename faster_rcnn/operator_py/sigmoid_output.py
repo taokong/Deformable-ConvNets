@@ -25,7 +25,7 @@ class SigmoidOutputOperator(mx.operator.CustomOp):
         assert len(in_data) == 2
         assert len(out_data) == 1
         prob, label = in_data
-        grad = self.factor*(prob - label)/float(self._num_classes) # only fg rois contribute to grad
+        grad = self.factor*(prob - label)/float(self._roi_per_img) # only fg rois contribute to grad
 
         self.assign(in_grad[0], req[0], mx.nd.array(grad))
 
