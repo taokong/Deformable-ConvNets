@@ -89,7 +89,9 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # print overlaps_out, np.shape(overlaps_out)
 
         # generate soft label for this
-        overlaps_out = 1 / (np.exp(-overlaps_matrix*20) + 1)
+        overlaps_out = 1 / (np.exp(-(overlaps_matrix-0.5)*20) + 1)
+        # print labels, np.argmax(overlaps_out, axis=1), np.max(overlaps_out, axis=1), np.max(overlaps_matrix, axis=1)
+        # print '-----------------'
 
         if DEBUG:
             print "labels=", labels

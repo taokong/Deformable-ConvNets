@@ -59,16 +59,18 @@ class ProposalTargetOperator(mx.operator.CustomOp):
             sample_rois(all_rois, fg_rois_per_image, rois_per_image, self._num_classes, self._cfg, gt_boxes=gt_boxes)
 
         # 3. laplace
-        mean = 0.5
-        sigma = 0.12
-        b = 0.5
-        overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
-        overlaps_out = np.ones((len(overlaps), self._num_classes))
-        for i in range(len(overlaps)):
-            if self._cfg.IOU_WEIGHT:
-                overlaps_out[i, :] = overlaps[i]
-            else:
-                overlaps_out[i, :] = 1
+        # mean = 0.5
+        # sigma = 0.12
+        # b = 0.5
+        # overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
+        # overlaps_out = np.ones((len(overlaps), self._num_classes))
+        # for i in range(len(overlaps)):
+        #     if self._cfg.IOU_WEIGHT:
+        #         overlaps_out[i, :] = overlaps[i]
+        #     else:
+        #         overlaps_out[i, :] = 1
+
+        overlaps_out = 1 / (np.exp(-(overlaps_matrix-0.5)*20) + 1)
 
         if DEBUG:
             print "labels=", labels

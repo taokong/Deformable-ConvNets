@@ -13,7 +13,7 @@ from operator_py.proposal import *
 from operator_py.proposal_target import *
 from operator_py.box_annotator_ohem import *
 from operator_py.sigmoid_output import *
-
+from operator_py.crossentropy import *
 class resnet_v1_101_rcnn(Symbol):
     def __init__(self):
         """
@@ -822,8 +822,8 @@ class resnet_v1_101_rcnn(Symbol):
                     # label_one_hot = mx.symbol.one_hot(indices=label, depth=num_classes, name='one_hot')
                     # cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
                     cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
-                    cls_prob = mx.sym.Custom(op_type='SigmoidOutput', num_classes=num_classes, roi_per_img=cfg.TRAIN.BATCH_ROIS,
-                                                        prob = cls_prob, label = overlaps)
+                    cls_prob = mx.sym.Custom(op_type='CrossEntropyLoss', roi_per_img=cfg.TRAIN.BATCH_ROIS,
+                                                        data = cls_prob, label = overlaps)
                 else:
                     cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
 
@@ -841,8 +841,6 @@ class resnet_v1_101_rcnn(Symbol):
             group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
         else:
             if cfg.SOFT_LABEL:
-                cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
-            else:
                 cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
 
             cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes),

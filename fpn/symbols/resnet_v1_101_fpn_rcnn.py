@@ -12,7 +12,7 @@ from operator_py.pyramid_proposal import *
 from operator_py.proposal_target import *
 from operator_py.fpn_roi_pooling import *
 from operator_py.box_annotator_ohem import *
-
+from operator_py.crossentropy import *
 
 class resnet_v1_101_fpn_rcnn(Symbol):
     def __init__(self):
@@ -910,7 +910,10 @@ class resnet_v1_101_fpn_rcnn(Symbol):
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS_OHEM)
                 rcnn_label = labels_ohem
             else:
-                cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
+                cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
+                cls_prob = mx.sym.Custom(op_type='CrossEntropyLoss', roi_per_img=cfg.TRAIN.BATCH_ROIS,
+                                                        data = cls_prob, label = overlaps)
+                # cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0, data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
                 rcnn_label = label

@@ -16,7 +16,6 @@ config.MXNET_VERSION = ''
 config.output_path = ''
 config.symbol = ''
 config.gpus = ''
-config.IOU_WEIGHT = False
 config.CLASS_AGNOSTIC = True
 config.SCALES = [(600, 1000)]  # first is scale (the shorter side); second is max size
 config.TEST_SCALES = [(600, 1000)]
@@ -48,6 +47,8 @@ config.dataset.root_path = './data'
 config.dataset.dataset_path = './data/VOCdevkit'
 config.dataset.NUM_CLASSES = 21
 
+config.IOU_WEIGHT = False
+config.SOFT_LABEL = False
 
 config.TRAIN = edict()
 

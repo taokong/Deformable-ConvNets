@@ -116,7 +116,6 @@ def get_rcnn_batch(roidb, cfg):
 
     return data, label
 
-
 def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
                 labels=None, overlaps=None, bbox_targets=None, gt_boxes=None):
     """
@@ -176,8 +175,15 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     for i, index in enumerate(keep_indexes):
         # get overlaps
         overlaps_this_box = overlaps_matrix[int(index), :]
+        inds_bg_score = np.where(overlaps_this_box < cfg.TRAIN.FG_THRESH)[0]
+        overlaps_this_box[inds_bg_score] = 0
         overlaps_out[i, gt_inds] = overlaps_this_box
-        overlaps_out[i, 0] = 1 - np.amax(overlaps_this_box)
+        overlap_fg = np.amax(overlaps_this_box)
+        if overlap_fg < cfg.TRAIN.FG_THRESH:
+            # bg
+            overlaps_out[i, 0] = 1
+        else:
+            overlaps_out[i, 0] = 0
 
     # load or compute bbox_target
     if bbox_targets is not None:
@@ -193,4 +199,3 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
         expand_bbox_regression_targets(bbox_target_data, num_classes, cfg)
 
     return rois, labels, bbox_targets, bbox_weights, overlaps, overlaps_out
-
