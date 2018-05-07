@@ -73,7 +73,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         sigma = 0.12
         b = 0.35
         min_value = b * np.exp(-np.abs(0-mean) / sigma)
-        overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma) + min_value
+        overlaps_ = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma) + min_value
         overlaps_out = np.ones((len(overlaps), self._num_classes))
         #
         # if self._cfg.IOU_WEIGHT:
@@ -84,14 +84,14 @@ class ProposalTargetOperator(mx.operator.CustomOp):
 
         for i in range(len(overlaps)):
             if self._cfg.IOU_WEIGHT:
-                overlaps_out[i, :] = overlaps[i]
+                overlaps_out[i, :] = overlaps_[i]
             else:
                 overlaps_out[i, :] = 1
 
         # 4. generate laplace weights for each class
-        # mean = 0.5
-        # sigma = 0.12
-        # b = 0.5
+        mean = 0.5
+        sigma = 0.12
+        b = 0.5
         # overlaps_out = 1 - b * np.exp(-np.abs(overlaps_matrix-mean) / sigma)
 
         # print overlaps_out, np.shape(overlaps_out)
@@ -100,6 +100,20 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # overlaps_out = 1 / (np.exp(-(overlaps_matrix-0.5)*20) + 1)
         # print labels, np.argmax(overlaps_out, axis=1), np.max(overlaps_out, axis=1), np.max(overlaps_matrix, axis=1)
         # print '-----------------'
+
+        overlaps_target = np.zeros((len(overlaps), 1))
+        overlaps_target[:, 0] = overlaps
+
+        overlaps_weights = np.zeros((len(overlaps), 1))
+        inds = np.where(overlaps > self._cfg.TRAIN.FG_THRESH)[0]
+        overlaps_weights[inds, 0] = 10
+
+        overlaps_target = 1 - b * np.exp(-np.abs(overlaps_target-mean) / sigma)
+
+        overlaps_target = (overlaps_target - b) * (1/b)
+
+        # print overlaps_target
+
 
         if DEBUG:
             print "labels=", labels
@@ -113,7 +127,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
             print 'num bg avg: {}'.format(self._bg_num / self._count)
             print 'ratio: {:.3f}'.format(float(self._fg_num) / float(self._bg_num))
 
-        for ind, val in enumerate([rois, labels, bbox_targets, bbox_weights, overlaps_out]):
+        for ind, val in enumerate([rois, labels, bbox_targets, bbox_weights, overlaps_out, overlaps_target, overlaps_weights]):
             self.assign(out_data[ind], req[ind], val)
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
@@ -135,7 +149,7 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
         return ['rois', 'gt_boxes']
 
     def list_outputs(self):
-        return ['rois_output', 'label', 'bbox_target', 'bbox_weight', 'overlaps']
+        return ['rois_output', 'label', 'bbox_target', 'bbox_weight', 'overlaps', 'iou_target', 'iou_weight']
 
     def infer_shape(self, in_shape):
         rpn_rois_shape = in_shape[0]
@@ -150,8 +164,10 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
 
         overlaps_shape = (rois, self._num_classes)
 
+        overlaps_target = (rois, 1)
+
         return [rpn_rois_shape, gt_boxes_shape], \
-               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape, overlaps_shape]
+               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape, overlaps_shape, overlaps_target, overlaps_target]
 
     def create_operator(self, ctx, shapes, dtypes):
         return ProposalTargetOperator(self._num_classes, self._batch_images, self._batch_rois, self._cfg, self._fg_fraction)

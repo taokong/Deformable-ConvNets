@@ -753,7 +753,7 @@ class resnet_v1_101_rcnn(Symbol):
                     threshold=cfg.TRAIN.RPN_NMS_THRESH, rpn_min_size=cfg.TRAIN.RPN_MIN_SIZE)
             # ROI proposal target
             gt_boxes_reshape = mx.sym.Reshape(data=gt_boxes, shape=(-1, 5), name='gt_boxes_reshape')
-            rois, label, bbox_target, bbox_weight, overlaps = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
+            rois, label, bbox_target, bbox_weight, overlaps, iou_target, iou_weight = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
                                                                   op_type='proposal_target',
                                                                   num_classes=num_reg_classes,
                                                                   batch_images=cfg.TRAIN.BATCH_IMAGES,
@@ -823,6 +823,11 @@ class resnet_v1_101_rcnn(Symbol):
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+
+                iou_loss_ = iou_weight * mx.sym.smooth_l1(name='iou_loss_', scalar=1.0,
+                                                             data=(iou_pred - iou_target))
+                iou_loss = mx.sym.MakeLoss(name='iou_loss', data=iou_loss_, grad_scale=1.0)
+
                 rcnn_label = label
 
             # reshape output
@@ -831,7 +836,11 @@ class resnet_v1_101_rcnn(Symbol):
                                       name='cls_prob_reshape')
             bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_reshape')
-            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
+
+            iou_loss = mx.sym.Reshape(data=iou_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1),
+                                       name='iou_loss_reshape')
+
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label), iou_loss])
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
 
@@ -839,7 +848,9 @@ class resnet_v1_101_rcnn(Symbol):
                                       name='cls_prob_reshape')
             bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_pred_reshape')
-            group = mx.sym.Group([rois, cls_prob, bbox_pred])
+            iou_pred = mx.sym.Reshape(data=iou_pred, shape=(cfg.TEST.BATCH_IMAGES, -1),
+                                       name='iou_pred_reshape')
+            group = mx.sym.Group([rois, cls_prob, bbox_pred, iou_pred])
 
         self.sym = group
         return group
@@ -998,6 +1009,9 @@ class resnet_v1_101_rcnn(Symbol):
         arg_params['cls_score_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['cls_score_bias'])
         arg_params['bbox_pred_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bbox_pred_weight'])
         arg_params['bbox_pred_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['bbox_pred_bias'])
+
+        arg_params['iou_pred_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['iou_pred_weight'])
+        arg_params['iou_pred_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['iou_pred_bias'])
 
     def init_weight_rpn(self, cfg, arg_params, aux_params):
         arg_params['rpn_conv_3x3_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['rpn_conv_3x3_weight'])
