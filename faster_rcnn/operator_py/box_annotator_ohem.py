@@ -49,8 +49,6 @@ class BoxAnnotatorOHEMOperator(mx.operator.CustomOp):
         bbox_weights_ohem = bbox_weights.asnumpy()
         bbox_weights_ohem[top_k_per_roi_loss[::-1][self._roi_per_img:]] = 0
 
-
-
         labels_ohem = mx.nd.array(labels_ohem)
         bbox_weights_ohem = mx.nd.array(bbox_weights_ohem)
         overaps_ohem = mx.nd.array(overaps_ohem)

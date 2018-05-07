@@ -71,7 +71,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # 3. laplace
         mean = 0.5
         sigma = 0.12
-        b = 0.35
+        b = 0.5
         min_value = b * np.exp(-np.abs(0-mean) / sigma)
         overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma) + min_value
         overlaps_out = np.ones((len(overlaps), self._num_classes))
