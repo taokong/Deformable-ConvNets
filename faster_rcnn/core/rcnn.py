@@ -179,12 +179,7 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
         inds_bg_score = np.where(overlaps_this_box < cfg.TRAIN.FG_THRESH)[0]
         overlaps_this_box[inds_bg_score] = 0
         overlaps_out[i, gt_inds] = overlaps_this_box
-        overlap_fg = np.amax(overlaps_this_box)
-        if overlap_fg < cfg.TRAIN.FG_THRESH:
-            # bg
-            overlaps_out[i, 0] = 1
-        else:
-            overlaps_out[i, 0] = 0
+        overlaps_out[i, 0] = 0
 
     # load or compute bbox_target
     if bbox_targets is not None:

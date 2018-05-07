@@ -69,16 +69,24 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # overlaps = 1 - np.exp(-(overlaps-mean)**2 / sigma) + min_value
 
         # 3. laplace
-        # mean = 0.5
-        # sigma = 0.12
-        # b = 0.5
-        # overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma)
-        # overlaps_out = np.ones((len(overlaps), self._num_classes))
-        # for i in range(len(overlaps)):
-        #     if self._cfg.IOU_WEIGHT:
-        #         overlaps_out[i, :] = overlaps[i]
-        #     else:
-        #         overlaps_out[i, :] = 1
+        mean = 0.5
+        sigma = 0.12
+        b = 0.35
+        min_value = b * np.exp(-np.abs(0-mean) / sigma)
+        overlaps = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma) + min_value
+        overlaps_out = np.ones((len(overlaps), self._num_classes))
+        #
+        # if self._cfg.IOU_WEIGHT:
+        #     inds = np.where(overlaps_matrix > self._cfg.TRAIN.FG_THRESH)
+        #     overlaps_out[inds] = 1 - b * np.exp(-np.abs(overlaps_matrix[inds]-mean) / sigma)
+
+        # print overlaps_out
+
+        for i in range(len(overlaps)):
+            if self._cfg.IOU_WEIGHT:
+                overlaps_out[i, :] = overlaps[i]
+            else:
+                overlaps_out[i, :] = 1
 
         # 4. generate laplace weights for each class
         # mean = 0.5
@@ -89,7 +97,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # print overlaps_out, np.shape(overlaps_out)
 
         # generate soft label for this
-        overlaps_out = 1 / (np.exp(-(overlaps_matrix-0.5)*20) + 1)
+        # overlaps_out = 1 / (np.exp(-(overlaps_matrix-0.5)*20) + 1)
         # print labels, np.argmax(overlaps_out, axis=1), np.max(overlaps_out, axis=1), np.max(overlaps_matrix, axis=1)
         # print '-----------------'
 

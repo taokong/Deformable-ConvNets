@@ -817,15 +817,8 @@ class resnet_v1_101_rcnn(Symbol):
                                             grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS_OHEM)
                 rcnn_label = labels_ohem
             else:
-                # need to change
-                if cfg.SOFT_LABEL:
-                    # label_one_hot = mx.symbol.one_hot(indices=label, depth=num_classes, name='one_hot')
-                    # cls_prob = mx.sym.Activation(name='cls_prob', data=cls_score, act_type='sigmoid')
-                    cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
-                    cls_prob = mx.sym.Custom(op_type='CrossEntropyLoss', roi_per_img=cfg.TRAIN.BATCH_ROIS,
-                                                        data = cls_prob, label = overlaps)
-                else:
-                    cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
+
+                cls_prob = overlaps * mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
 
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
@@ -840,8 +833,7 @@ class resnet_v1_101_rcnn(Symbol):
                                        name='bbox_loss_reshape')
             group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
         else:
-            if cfg.SOFT_LABEL:
-                cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
+            cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
 
             cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes),
                                       name='cls_prob_reshape')
