@@ -1,9 +1,6 @@
-"""
-Compute the instance segmentation output using the class-specific masks.
-"""
 
 import mxnet as mx
-from mxnet import nd
+import math
 DEBUG = False
 
 class RankOutputOperator(mx.operator.CustomOp):
@@ -26,35 +23,30 @@ class RankOutputOperator(mx.operator.CustomOp):
         assert len(out_data) == 1
         probs, overlaps = in_data
 
-        # generate pairs labels
-        overlaps_i = overlaps
+        # sort the overlaps in decent way
+        sort_inds = mx.nd.argsort(-overlaps, axis = 0)
+        lamdas = mx.nd.zeros(probs.shape)
+        for cls_i in range(self._num_classes):
+            for box_j in range(self._roi_per_img):
+                lamda_ij = 0
+                # get curent value
+                score_j = probs[sort_inds[box_j, cls_i], cls_i]
+                for box_i in range(self._roi_per_img):
+                    score_i = probs[sort_inds[box_i, cls_i], cls_i]
+                    # compute lamda_i
+                    if sort_inds[box_i, cls_i] > sort_inds[box_j, cls_i]:
+                        # S_ij = 1
+                        lamda_ij += -1 / (1 + math.exp(score_i - score_j))
+                    elif sort_inds[box_i, cls_i] < sort_inds[box_j, cls_i]:
+                        # S_ij = -1
+                        lamda_ij += 1 - 1 / (1 + math.exp(score_i - score_j))
 
-        inds = nd.arange(int(self._roi_per_img)) + 1
-        inds[self._roi_per_img-1] = 0
-        overlaps_j = overlaps[inds, :]
+                lamdas[box_j, cls_i] = lamda_ij / self._roi_per_img
 
-        # diff ij and S ij
-        diff_ij = overlaps_i - overlaps_j
-        S_ij = nd.zeros(diff_ij.shape)
-
-        for cls_i in range(self._num_classes - 1):
-            for box_j in range(self._roi_per_img ):
-                if diff_ij[box_j, cls_i] > diff_ij[(box_j+1)%self._roi_per_img, cls_i]:
-                    S_ij[box_j, cls_i] = 1
-                elif diff_ij[box_j, cls_i] < diff_ij[(box_j+1)%self._roi_per_img, cls_i]:
-                    S_ij[box_j, cls_i] = -1
-
-        # finding pairs and update grads
-        grad = 0.5 * (1 - S_ij) - 1 / (1 + nd.exp(diff_ij))
-
-
-
-        grad = self.factor*(prob - label)/float(self._roi_per_img) # only fg rois contribute to grad
-
-        self.assign(in_grad[0], req[0], mx.nd.array(grad))
+        self.assign(in_grad[0], req[0], mx.nd.array(lamdas))
 
 
-@mx.operator.register("SigmoidOutput")
+@mx.operator.register("RankOutput")
 class RankOutputProp(mx.operator.CustomOpProp):
     def __init__(self, num_classes, roi_per_img):
         super(RankOutputProp, self).__init__(need_top_grad=False)
@@ -62,21 +54,19 @@ class RankOutputProp(mx.operator.CustomOpProp):
         self._roi_per_img = int(roi_per_img)
 
     def list_arguments(self):
-        return ['prob', 'label']
+        return ['prob', 'overlap']
 
     def list_outputs(self):
-        return ['output_prob']
+        return ['rank_output']
 
     def infer_shape(self, in_shape):
         prob_shape = in_shape[0]
-        label_shape = in_shape[1]
+        overlap_shape = in_shape[1]
 
-        assert prob_shape[0] == label_shape[0], \
-            'prob_shape[0] != label_shape[0], {} vs {}'.format(prob_shape[0], label_shape[0])
+        assert prob_shape[0] == overlap_shape[0], \
+            'prob_shape[0] != overlap_shape_shape[0], {} vs {}'.format(prob_shape[0], overlap_shape[0])
 
-
-        output_mask_shape = prob_shape
-        return in_shape, [output_mask_shape]
+        return in_shape, [overlap_shape]
 
     def create_operator(self, ctx, shapes, dtypes):
-        return SigmoidOutputOperator(self._num_classes, self._roi_per_img)
+        return RankOutputOperator(self._num_classes, self._roi_per_img)
