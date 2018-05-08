@@ -14,14 +14,24 @@ def iou_weight(x):
 
 if __name__ == '__main__':
 
-    x = np.linspace(0, 10, 100)
-    y = sigmoid(x)
-    y_w = iou_weight(x)
+    # x = np.linspace(0, 10, 100)
+    # y = sigmoid(x)
+    # y_w = iou_weight(x)
+    #
+    # plt.plot(x, y, 'r')
+    # plt.plot(x, y_w, 'g')
+    # plt.grid()
+    # plt.show()
+
+    x = np.linspace(-10, 10, 100)
+    y = -1 / (1 + np.exp(x))
+    y1 = 1 -1 / (1 + np.exp(x))
 
     plt.plot(x, y, 'r')
-    plt.plot(x, y_w, 'g')
+    plt.plot(x, y1, 'g')
     plt.grid()
     plt.show()
+
 
 
 

@@ -19,7 +19,7 @@ def get_rpn_names():
 def get_rcnn_names(cfg):
     pred = ['rcnn_cls_prob', 'rcnn_bbox_loss']
     label = ['rcnn_label', 'rcnn_bbox_target', 'rcnn_bbox_weight']
-    iou_pred = ['iou_loss']
+    iou_pred = ['rank_loss']
 
     if cfg.TRAIN.ENABLE_OHEM or cfg.TRAIN.END2END:
         pred.append('rcnn_label')
@@ -176,15 +176,16 @@ class RCNNL1LossMetric(mx.metric.EvalMetric):
 
         self.sum_metric += np.sum(bbox_loss)
         self.num_inst += num_inst
-class RCNNIOULossMetric(mx.metric.EvalMetric):
+
+class RCNNRankLossMetric(mx.metric.EvalMetric):
     def __init__(self, cfg):
-        super(RCNNIOULossMetric, self).__init__('RCNNIOULoss')
+        super(RCNNRankLossMetric, self).__init__('RCNNRankLoss')
         self.e2e = cfg.TRAIN.END2END
         self.ohem = cfg.TRAIN.ENABLE_OHEM
         self.pred, self.label = get_rcnn_names(cfg)
 
     def update(self, labels, preds):
-        bbox_loss = preds[self.pred.index('iou_loss')].asnumpy()
+        rank_loss = preds[self.pred.index('rank_loss')].asnumpy()
         if self.ohem:
             label = preds[self.pred.index('rcnn_label')].asnumpy()
         else:
@@ -196,5 +197,5 @@ class RCNNIOULossMetric(mx.metric.EvalMetric):
         # calculate num_inst (average on those kept anchors)
         num_inst = np.sum(label != -1)
 
-        self.sum_metric += np.sum(bbox_loss)
+        self.sum_metric += np.sum(rank_loss)
         self.num_inst += num_inst

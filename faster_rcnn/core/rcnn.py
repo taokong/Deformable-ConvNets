@@ -176,8 +176,6 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     for i, index in enumerate(keep_indexes):
         # get overlaps
         overlaps_this_box = overlaps_matrix[int(index), :]
-        inds_bg_score = np.where(overlaps_this_box < cfg.TRAIN.FG_THRESH)[0]
-        overlaps_this_box[inds_bg_score] = 0
         overlaps_out[i, gt_inds] = overlaps_this_box
         overlaps_out[i, 0] = 0
 
