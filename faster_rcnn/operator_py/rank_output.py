@@ -3,7 +3,7 @@ Compute the instance segmentation output using the class-specific masks.
 """
 
 import mxnet as mx
-from mxnet import nd
+
 DEBUG = False
 
 class RankOutputOperator(mx.operator.CustomOp):
@@ -26,7 +26,27 @@ class RankOutputOperator(mx.operator.CustomOp):
         assert len(out_data) == 1
         probs, overlaps = in_data
 
-        # generate pairs labels
+        # sort the overlaps in decent way
+        sort_inds = mx.nd.argsort(-overlaps, axis = 0)
+
+        for cls_i in range(self._num_classes):
+
+            for box_j in range(self._roi_per_img):
+                lamda = 0
+                # get curent value
+                overlap_j = overlaps[sort_inds[box_j, cls_i], cls_i]
+                score_j = probs[sort_inds[box_j, cls_i], cls_i]
+                for box_i in range(self._roi_per_img):
+                    overlap_i = overlaps[sort_inds[box_i, cls_i], cls_i]
+                    score_i = probs[sort_inds[box_i, cls_i], cls_i]
+                    # compute S_ij
+                    S_ij = 0
+                    if
+
+
+
+
+
         overlaps_i = overlaps
 
         inds = nd.arange(int(self._roi_per_img)) + 1
