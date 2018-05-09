@@ -8,7 +8,7 @@ DEBUG = False
 class RankOutputOperator(mx.operator.CustomOp):
     def __init__(self, num_classes, roi_per_img):
         super(RankOutputOperator, self).__init__()
-        self.factor = 1.0
+        self.factor = 0.33
         self._num_classes = num_classes
         self._roi_per_img = roi_per_img
 
@@ -20,45 +20,47 @@ class RankOutputOperator(mx.operator.CustomOp):
         if DEBUG:
             print is_train
             print len(in_data)
-        #
-        # probs, overlaps = in_data
-        # probs = probs.asnumpy()
-        # overlaps = overlaps.asnumpy()
-        #
-        # # sort the overlaps in decent way
-        # # sort_inds = np.argsort(-overlaps, axis = 0)
-        # losses = mx.nd.zeros(probs.shape)
-        # for cls_i in range(self._num_classes):
-        #     for box_j in range(self._roi_per_img):
-        #
-        #         loss_ij = 0
-        #         # get curent value
-        #         overlap_j = overlaps[box_j, cls_i]
-        #         score_j = probs[box_j, cls_i]
-        #         if overlap_j < self._min_overlap:
-        #             # skip this box since
-        #             continue
-        #
-        #         n_samples = 0
-        #         for box_i in range(self._roi_per_img):
-        #             overlap_i = overlaps[box_i, cls_i]
-        #             score_i = probs[box_i, cls_i]
-        #             if overlap_i < self._min_overlap:
-        #                 continue
-        #
-        #             n_samples += 1
-        #             # compute lamda_i
-        #             if overlap_j > overlap_i:
-        #                 # S_ij = 1
-        #                 loss_ij += math.log(1 + math.exp(-(score_j - score_i)))
-        #             elif overlap_j < overlap_i:
-        #                 # S_ij = -1
-        #                 loss_ij += math.log(1 + math.exp(-(score_i - score_j)))
-        #             else:
-        #                 loss_ij += 0.5 + math.log(1 + math.exp(-(score_j - score_i)))
-        #
-        #         if n_samples > 0:
-        #             losses[box_j, cls_i] = loss_ij / n_samples
+
+        probs, overlaps = in_data
+        probs = probs.asnumpy()
+        overlaps = overlaps.asnumpy()
+
+        # sort the overlaps in decent way
+        # sort_inds = np.argsort(-overlaps, axis = 0)
+        losses = mx.nd.zeros(probs.shape)
+        for cls_i in range(self._num_classes):
+            if cls_i < 1:
+                continue
+            for box_j in range(self._roi_per_img):
+
+                loss_ij = 0
+                # get curent value
+                overlap_j = overlaps[box_j, cls_i]
+                score_j = probs[box_j, cls_i]
+                if overlap_j < self._min_overlap:
+                    # skip this box since
+                    continue
+
+                n_samples = 0
+                for box_i in range(self._roi_per_img):
+                    overlap_i = overlaps[box_i, cls_i]
+                    score_i = probs[box_i, cls_i]
+                    if overlap_i < self._min_overlap:
+                        continue
+
+                    n_samples += 1
+                    # compute lamda_i
+                    if overlap_j > overlap_i:
+                        # S_ij = 1
+                        loss_ij += math.log(1 + math.exp(-self._gama * (score_j - score_i)))
+                    elif overlap_j < overlap_i:
+                        # S_ij = -1
+                        loss_ij += math.log(1 + math.exp(-self._gama * (score_i - score_j)))
+                    else:
+                        loss_ij += 0.5 * self._gama * (score_j - score_i) + math.log(1 + math.exp(-self._gama * (score_j - score_i)))
+
+                if n_samples > 0:
+                    losses[box_j, cls_i] = loss_ij / n_samples
 
         self.assign(out_data[0], req[0], in_data[0])
 
@@ -108,7 +110,7 @@ class RankOutputOperator(mx.operator.CustomOp):
                         lamda_ij += 0.5 + logs[box_i]
 
                 if n_samples > 0:
-                    lamdas[box_j, cls_i] = lamda_ij / n_samples
+                    lamdas[box_j, cls_i] = self.factor * lamda_ij / n_samples
 
         # find
         if DEBUG:
