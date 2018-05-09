@@ -22,10 +22,10 @@ if __name__ == '__main__':
     # plt.plot(x, y_w, 'g')
     # plt.grid()
     # plt.show()
-
-    x = np.linspace(-10, 10, 100)
-    y = -1 / (1 + np.exp(x))
-    y1 = 1 -1 / (1 + np.exp(x))
+    gama = 6
+    x = np.linspace(-1, 1, 100)
+    y = gama * (-1 / (1 + np.exp(x*gama)))
+    y1 = gama * (1 -1 / (1 + np.exp(x*gama)))
 
     plt.plot(x, y, 'r')
     plt.plot(x, y1, 'g')
