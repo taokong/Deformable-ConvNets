@@ -41,7 +41,7 @@ class RankOutputOperator(mx.operator.CustomOp):
                     # skip this box since
                     continue
 
-                n_samples = 0
+                n_samples = 0.0
                 for box_i in range(self._roi_per_img):
                     overlap_i = overlaps[box_i, cls_i]
                     score_i = probs[box_i, cls_i]
@@ -62,7 +62,7 @@ class RankOutputOperator(mx.operator.CustomOp):
                 if n_samples > 0:
                     losses[box_j, cls_i] = loss_ij / n_samples
 
-        self.assign(out_data[0], req[0], in_data[0])
+        self.assign(out_data[0], req[0], losses)
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
 
@@ -89,7 +89,7 @@ class RankOutputOperator(mx.operator.CustomOp):
                     # skip this box since
                     continue
 
-                n_samples = 0
+                n_samples = 0.0
                 scores_i = probs[:, cls_i]
                 logs = -1 / (1 + np.exp(self._gama * (score_j - scores_i)))
                 for box_i in range(self._roi_per_img):
