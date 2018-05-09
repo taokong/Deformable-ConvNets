@@ -13,6 +13,7 @@ class RankOutputOperator(mx.operator.CustomOp):
         self._roi_per_img = roi_per_img
 
         self._min_overlap = 0.4
+        self._gama = 6.0
 
 
     def forward(self, is_train, req, in_data, out_data, aux):
@@ -74,6 +75,8 @@ class RankOutputOperator(mx.operator.CustomOp):
         # sort_inds = np.argsort(-overlaps, axis = 0)
         lamdas = mx.nd.zeros(probs.shape)
         for cls_i in range(self._num_classes):
+            if cls_i < 1:
+                continue
             for box_j in range(self._roi_per_img):
                 lamda_ij = 0
                 # get curent value
@@ -86,7 +89,7 @@ class RankOutputOperator(mx.operator.CustomOp):
 
                 n_samples = 0
                 scores_i = probs[:, cls_i]
-                logs = -1 / (1 + np.exp(score_j - scores_i))
+                logs = -1 / (1 + np.exp(self._gama * (score_j - scores_i)))
                 for box_i in range(self._roi_per_img):
                     overlap_i = overlaps[box_i, cls_i]
 
