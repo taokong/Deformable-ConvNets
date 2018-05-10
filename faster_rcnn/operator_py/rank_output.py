@@ -8,11 +8,11 @@ DEBUG = False
 class RankOutputOperator(mx.operator.CustomOp):
     def __init__(self, num_classes, roi_per_img):
         super(RankOutputOperator, self).__init__()
-        self.factor = 0.33
+        self.factor = 0.2
         self._num_classes = num_classes
         self._roi_per_img = roi_per_img
 
-        self._min_overlap = 0.4
+        self._min_overlap = 0.5
         self._gama = 6.0
 
 
@@ -26,7 +26,7 @@ class RankOutputOperator(mx.operator.CustomOp):
         overlaps = overlaps.asnumpy()
 
         # sort the overlaps in decent way
-        # sort_inds = np.argsort(-overlaps, axis = 0)
+        sort_inds = np.argsort(-overlaps, axis = 0)
         losses = mx.nd.zeros(probs.shape)
         for cls_i in range(self._num_classes):
             if cls_i < 1:
@@ -35,32 +35,33 @@ class RankOutputOperator(mx.operator.CustomOp):
 
                 loss_ij = 0
                 # get curent value
-                overlap_j = overlaps[box_j, cls_i]
-                score_j = probs[box_j, cls_i]
+                overlap_j = overlaps[sort_inds[box_j, cls_i], cls_i]
+                score_j = probs[sort_inds[box_j, cls_i], cls_i]
                 if overlap_j < self._min_overlap:
                     # skip this box since
                     continue
 
                 n_samples = 0.0
                 for box_i in range(self._roi_per_img):
-                    overlap_i = overlaps[box_i, cls_i]
-                    score_i = probs[box_i, cls_i]
+                    overlap_i = overlaps[sort_inds[box_i, cls_i], cls_i]
+                    score_i = probs[sort_inds[box_i, cls_i], cls_i]
                     if overlap_i < self._min_overlap:
                         continue
 
                     n_samples += 1
                     # compute lamda_i
-                    if overlap_j > overlap_i:
-                        # S_ij = 1
-                        loss_ij += math.log(1 + math.exp(-self._gama * (score_j - score_i)))
-                    elif overlap_j < overlap_i:
-                        # S_ij = -1
-                        loss_ij += math.log(1 + math.exp(-self._gama * (score_i - score_j)))
+                    S_ji = 0
+                    if box_i < box_j:
+                        S_ji = -1
+                    elif box_i > box_j:
+                        S_ji = 1
                     else:
-                        loss_ij += 0.5 * self._gama * (score_j - score_i) + math.log(1 + math.exp(-self._gama * (score_j - score_i)))
+                        S_ji = 0
+
+                    loss_ij += 0.5 * (1-S_ji) * self._gama * (score_j - score_i) + math.log(1 + math.exp(-self._gama * (score_j - score_i)))
 
                 if n_samples > 0:
-                    losses[box_j, cls_i] = loss_ij / n_samples
+                    losses[box_j, cls_i] = self.factor * loss_ij / n_samples
 
         self.assign(out_data[0], req[0], losses)
 
@@ -74,7 +75,9 @@ class RankOutputOperator(mx.operator.CustomOp):
         overlaps = overlaps.asnumpy()
 
         # sort the overlaps in decent way
-        # sort_inds = np.argsort(-overlaps, axis = 0)
+        sort_inds = np.argsort(-overlaps, axis = 0)
+
+        # print sort_inds
         lamdas = mx.nd.zeros(probs.shape)
         for cls_i in range(self._num_classes):
             if cls_i < 1:
@@ -82,48 +85,52 @@ class RankOutputOperator(mx.operator.CustomOp):
             for box_j in range(self._roi_per_img):
                 lamda_ij = 0
                 # get curent value
-                overlap_j = overlaps[box_j, cls_i]
-                score_j = probs[box_j, cls_i]
+                overlap_j = overlaps[sort_inds[box_j, cls_i], cls_i]
+                score_j = probs[sort_inds[box_j, cls_i], cls_i]
 
                 if overlap_j < self._min_overlap:
                     # skip this box since
                     continue
 
                 n_samples = 0.0
-                scores_i = probs[:, cls_i]
-                logs = -1 / (1 + np.exp(self._gama * (score_j - scores_i)))
+                # scores_i = probs[sort_inds[:, cls_i], cls_i]
+                # logs = -1 / (1 + np.exp(self._gama * (score_j - scores_i)))
                 for box_i in range(self._roi_per_img):
-                    overlap_i = overlaps[box_i, cls_i]
+                    overlap_i = overlaps[sort_inds[box_i, cls_i], cls_i]
+                    score_i = probs[sort_inds[box_i, cls_i], cls_i]
 
                     if overlap_i < self._min_overlap:
                         continue
 
+                    if box_j == box_i:
+                        continue
+
                     n_samples += 1
                     # compute lamda_i
-                    if overlap_j > overlap_i:
-                        # S_ij = 1
-                        lamda_ij += logs[box_i]
-                    elif overlap_j < overlap_i:
-                        # S_ij = -1
-                        lamda_ij += 1 + logs[box_i]
+                    if box_i < box_j:
+                        lamda_ij -= -1 / (1 + math.exp(self._gama * (score_i - score_j)))
                     else:
-                        lamda_ij += 0.5 + logs[box_i]
+                        lamda_ij += -1 / (1 + math.exp(self._gama * (score_j - score_i)))
 
                 if n_samples > 0:
-                    lamdas[box_j, cls_i] = self.factor * lamda_ij / n_samples
+                    lamdas[sort_inds[box_j, cls_i], cls_i] = self.factor * lamda_ij / n_samples
 
         # find
         if DEBUG:
-            sort_inds = np.argsort(-overlaps, axis = 0)
             max_overlap_cls_ind = np.argmax(overlaps[sort_inds[0, :], range(self._num_classes)])
             overlaps_this = overlaps[:, max_overlap_cls_ind]
-            probs_this = probs[:, max_overlap_cls_ind]
-            lamda_this = lamdas.asnumpy()[:, max_overlap_cls_ind]
-            inds_decent = np.argsort(-overlaps_this)
-            print max_overlap_cls_ind
-            print overlaps_this[inds_decent[10:26]]
-            print probs_this[inds_decent[10:26]]
-            print lamda_this[inds_decent[10:26]]
+            consider_inds = np.where(overlaps_this.flatten() > self._min_overlap)[0]
+            overlaps_this = overlaps_this[consider_inds]
+            probs_this = probs[consider_inds, max_overlap_cls_ind]
+            lamda_this = lamdas.asnumpy()[consider_inds, max_overlap_cls_ind]
+
+            decent_inds = np.argsort(-overlaps_this)
+            overlaps_this = overlaps_this[decent_inds]
+            probs_this = probs_this[decent_inds]
+            lamda_this = lamda_this[decent_inds]
+            print np.round(overlaps_this, 3)
+            print np.round(probs_this, 3)
+            print np.round(lamda_this, 3)
 
 
 

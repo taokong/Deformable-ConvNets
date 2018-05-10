@@ -71,22 +71,22 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # 3. laplace
         # mean = 0.5
         # sigma = 0.12
-        # b = 0.35
+        # b = 0.5
         # min_value = b * np.exp(-np.abs(0-mean) / sigma)
         # overlaps_ = 1 - b *np.exp(-np.abs(overlaps-mean) / sigma) + min_value
-        # overlaps_out = np.ones((len(overlaps), self._num_classes))
+        # overlaps_weight = np.ones((len(overlaps), self._num_classes))
         #
         # if self._cfg.IOU_WEIGHT:
         #     inds = np.where(overlaps_matrix > self._cfg.TRAIN.FG_THRESH)
         #     overlaps_out[inds] = 1 - b * np.exp(-np.abs(overlaps_matrix[inds]-mean) / sigma)
 
         # print overlaps_out
-
+        #
         # for i in range(len(overlaps)):
         #     if self._cfg.IOU_WEIGHT:
-        #         overlaps_out[i, :] = overlaps_[i]
+        #         overlaps_weight[i, :] = overlaps_[i]
         #     else:
-        #         overlaps_out[i, :] = 1
+        #         overlaps_weight[i, :] = 1
         #
         # # 4. generate laplace weights for each class
         # mean = 0.5

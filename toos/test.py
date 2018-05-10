@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -12,6 +13,29 @@ def iou_weight(x):
 
     return y
 
+def test_rankout():
+
+    overlaps = np.array([[1. ,   0.752, 0.723, 0.528, 0.4, 0.3]])
+    scores = np.array([0.828, 0.803, 0.526, 0.828, 0.3, 0.2])
+    rank_weights = np.zeros(6)
+    for cls_i in range(6):
+        lamda_ij = 0
+        for cls_j in range(6):
+            if cls_i == cls_j:
+                continue
+
+            if cls_j  < cls_i:
+                lamda_ij -= -1 / (1 + math.exp( (scores[cls_j] - scores[cls_i])))
+            else:
+                lamda_ij += -1 / (1 + math.exp( (scores[cls_i] - scores[cls_j])))
+            print lamda_ij
+
+        rank_weights[cls_i] = lamda_ij
+
+    print rank_weights
+
+
+
 if __name__ == '__main__':
 
     # x = np.linspace(0, 10, 100)
@@ -22,15 +46,19 @@ if __name__ == '__main__':
     # plt.plot(x, y_w, 'g')
     # plt.grid()
     # plt.show()
-    gama = 6
-    x = np.linspace(-1, 1, 100)
-    y = (-1 / (1 + np.exp(x*gama)))
-    y1 = (1 -1 / (1 + np.exp(x*gama)))
 
-    plt.plot(x, y, 'r')
-    plt.plot(x, y1, 'g')
-    plt.grid()
-    plt.show()
+    test_rankout()
+
+    #
+    # gama = 6
+    # x = np.linspace(-0.7, 0.7, 100)
+    # y = 0.2 * (-1 / (1 + np.exp(x*gama)))
+    # y1 = 0.2 * (1 -1 / (1 + np.exp(x*gama)))
+    #
+    # plt.plot(x, y, 'r')
+    # plt.plot(x, y1, 'g')
+    # plt.grid()
+    # plt.show()
 
 
 
