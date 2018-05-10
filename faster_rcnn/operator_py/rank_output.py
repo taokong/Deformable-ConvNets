@@ -9,7 +9,7 @@ DEBUG = False
 class RankOutputOperator(mx.operator.CustomOp):
     def __init__(self, num_classes, roi_per_img):
         super(RankOutputOperator, self).__init__()
-        self.factor = 0.5
+        self.factor = 0.2
         self._num_classes = num_classes
         self._roi_per_img = roi_per_img
 
