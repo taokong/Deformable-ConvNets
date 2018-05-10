@@ -47,18 +47,19 @@ if __name__ == '__main__':
     # plt.grid()
     # plt.show()
 
-    test_rankout()
+    # test_rankout()
+    #
 
-    #
-    # gama = 6
-    # x = np.linspace(-0.7, 0.7, 100)
-    # y = 0.2 * (-1 / (1 + np.exp(x*gama)))
-    # y1 = 0.2 * (1 -1 / (1 + np.exp(x*gama)))
-    #
-    # plt.plot(x, y, 'r')
-    # plt.plot(x, y1, 'g')
-    # plt.grid()
-    # plt.show()
+    gama = 1
+    x_b = np.linspace(0, 10, 100)
+    x_a = np.linspace(-10, 0, 100)
+    y_a = 1 * (1 / (1 + np.exp(x_b*gama)))
+    y_b = -1 * (1 / (1 + np.exp(x_b*gama)))
+
+    plt.plot(x_b, y_a, 'r')
+    plt.plot(x_b, y_b, 'g')
+    plt.grid()
+    plt.show()
 
 
 

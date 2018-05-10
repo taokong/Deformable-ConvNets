@@ -824,13 +824,13 @@ class resnet_v1_101_rcnn(Symbol):
                                                             data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
 
-                rank_prob = mx.sym.SoftmaxActivation(name='cls_prob_', data=cls_score)
+                # rank_prob = mx.sym.SoftmaxActivation(name='cls_prob_', data=cls_score)
 
                 rank_loss_ = mx.sym.Custom(op_type='RankOutput', num_classes=num_classes,
                                                                roi_per_img=cfg.TRAIN.BATCH_ROIS,
-                                                               prob=rank_prob, overlap=overlaps)
+                                                               prob=cls_score, overlap=overlaps)
 
-                rank_loss = mx.sym.MakeLoss(name='rank_loss', data=rank_loss_, grad_scale=1.0)
+                rank_loss = mx.sym.MakeLoss(name='rank_loss', data=rank_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
 
                 rcnn_label = label
 
