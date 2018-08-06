@@ -156,7 +156,6 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
 
     # indexes selected
     keep_indexes = np.append(fg_indexes, bg_indexes)
-
     # pad more to ensure a fixed minibatch size
     while keep_indexes.shape[0] < rois_per_image:
         gap = np.minimum(len(rois), rois_per_image - keep_indexes.shape[0])
