@@ -165,9 +165,10 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
 
     # select labels
     labels = labels[keep_indexes]
-    overlaps = overlaps[keep_indexes]
+    overlaps_keep = overlaps[keep_indexes]
     # set labels of bg_rois to be 0
-    labels[(overlaps < cfg.TRAIN.BG_THRESH_HI) & (overlaps >= cfg.TRAIN.BG_THRESH_LO)] = 0
+    # labels[(overlaps_keep < cfg.TRAIN.BG_THRESH_HI) & (overlaps_keep >= cfg.TRAIN.BG_THRESH_LO)] = 0
+    labels[fg_rois_per_this_image:] = 0
     rois = rois[keep_indexes]
 
     # load or compute bbox_target

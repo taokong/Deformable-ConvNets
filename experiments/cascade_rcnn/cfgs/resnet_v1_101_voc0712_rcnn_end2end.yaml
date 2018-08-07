@@ -1,9 +1,9 @@
 ---
 MXNET_VERSION: "mxnet"
-output_path: "./output/rcnn/voc"
+output_path: "./output/cascade/voc"
 symbol: resnet_v1_101_rcnn
-gpus: '0,1,2,3'
-CLASS_AGNOSTIC: true
+gpus: '0'
+CLASS_AGNOSTIC: True
 SCALES:
 - 600
 - 1000
@@ -64,7 +64,7 @@ TRAIN:
   warmup_step: 1000
   begin_epoch: 0
   end_epoch: 7
-  model_prefix: 'rcnn_voc'
+  model_prefix: 'cascade_voc'
   # whether resume training
   RESUME: false
   # whether flip image
