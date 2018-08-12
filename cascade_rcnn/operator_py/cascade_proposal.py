@@ -13,7 +13,7 @@ Proposal Operator.
 import mxnet as mx
 import numpy as np
 import cPickle
-from bbox.bbox_transform import nonlinear_pred, clip_boxes
+from bbox.bbox_transform import bbox_pred, clip_boxes
 
 DEBUG = False
 
@@ -30,7 +30,7 @@ class CascadeProposalOperator(mx.operator.CustomOp):
             self._bg_num = 0
 
     def forward(self, is_train, req, in_data, out_data, aux):
-        assert self._batch_rois == -1 or self._batch_rois % self._batch_images == 0, \
+        assert self._batch_images == 1, \
             'batchimages {} must devide batch_rois {}'.format(self._batch_images, self._batch_rois)
         all_rois = in_data[0].asnumpy()
         all_rois_off = in_data[1].asnumpy()[0]
@@ -44,24 +44,11 @@ class CascadeProposalOperator(mx.operator.CustomOp):
         assert np.all(all_rois[:, 0] == 0), 'Only single item batches are supported'
 
         # generate new bbox result
-        bbox_mean = self._cfg.TRAIN.BBOX_MEANS
-
-        if self._stage == 2:
-            bbox_std = self._cfg.TRAIN.BBOX_STDS_1st
-        else:
-            bbox_std = self._cfg.TRAIN.BBOX_STDS_2nd
-
-        stds = np.tile(
-            np.array(bbox_std), (self._num_classes))
-        means = np.tile(
-            np.array(bbox_mean), (self._num_classes))
-
-        all_rois_off *= stds
-        all_rois_off += means
-        all_rois_pred = nonlinear_pred(all_rois[:, 1:5], all_rois_off[:, 4:8])
+        all_rois_pred = bbox_pred(all_rois[:, 1:5], all_rois_off[:, 4:8])
         all_rois_pred = clip_boxes(all_rois_pred, im_info[:2])
         zeros = np.zeros((all_rois_pred.shape[0], 1), dtype=all_rois_pred.dtype)
         all_rois_pred = np.hstack((zeros, all_rois_pred))
+
 
         for ind, val in enumerate([all_rois_pred]):
             self.assign(out_data[ind], req[ind], val)
@@ -83,7 +70,7 @@ class CascadeProposalProp(mx.operator.CustomOpProp):
         return ['rois', 'bbox_offset', 'im_info']
 
     def list_outputs(self):
-        return ['rois_output']
+        return ['output']
 
     def infer_shape(self, in_shape):
         rpn_rois_shape = in_shape[0]
@@ -91,8 +78,7 @@ class CascadeProposalProp(mx.operator.CustomOpProp):
         im_info_shape = in_shape[2]
 
 
-        rois = self._batch_rois
-        output_rois_shape = (rois, 5)
+        output_rois_shape = rpn_rois_shape
 
         return [rpn_rois_shape, bbox_offset_shape, im_info_shape], \
                [output_rois_shape]

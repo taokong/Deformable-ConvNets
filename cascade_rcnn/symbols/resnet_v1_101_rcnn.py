@@ -13,7 +13,7 @@ from operator_py.proposal import *
 from operator_py.proposal_target import *
 from operator_py.box_annotator_ohem import *
 from operator_py.cascade_proposal_target import *
-
+from operator_py.cascade_proposal import *
 
 class resnet_v1_101_rcnn(Symbol):
     def __init__(self):
@@ -787,7 +787,7 @@ class resnet_v1_101_rcnn(Symbol):
         conv_new_1 = mx.sym.Convolution(data=relu1, kernel=(1, 1), num_filter=256, name="conv_new_1")
         conv_new_1_relu = mx.sym.Activation(data=conv_new_1, act_type='relu', name='conv_new_1_relu')
 
-        roi_pool = mx.contrib.symbol.ROIAlign(
+        roi_pool = mx.symbol.ROIPooling(
             name='roi_pool', data=conv_new_1_relu, rois=rois, pooled_size=(7, 7), spatial_scale=0.0625)
 
         # 1st head
@@ -819,7 +819,7 @@ class resnet_v1_101_rcnn(Symbol):
                 cls_prob = mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
-                bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+                bbox_loss = 2 * mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
                 rcnn_label = label
 
             # pred result
@@ -839,7 +839,7 @@ class resnet_v1_101_rcnn(Symbol):
                                                                                   fg_fraction=cfg.TRAIN.FG_FRACTION,
                                                                                   stage=2)
 
-            roi_pool_2nd = mx.contrib.symbol.ROIAlign(
+            roi_pool_2nd = mx.symbol.ROIPooling(
                 name='roi_pool_2nd', data=conv_new_1_relu, rois=rois_2nd, pooled_size=(7, 7), spatial_scale=0.0625)
 
             # generate new rois for second stage regression
@@ -858,7 +858,7 @@ class resnet_v1_101_rcnn(Symbol):
             cls_prob_2nd = mx.sym.SoftmaxOutput(name='cls_prob_2nd', data=cls_score_2nd, label=label_2nd, normalization='valid')
             bbox_loss_2nd_ = bbox_weight_2nd * mx.sym.smooth_l1(name='bbox_loss_2nd_', scalar=1.0,
                                                         data=(bbox_pred_2nd - bbox_target_2nd))
-            bbox_loss_2nd = mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+            bbox_loss_2nd = 2 * mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label_2nd = label_2nd
 
 
@@ -891,9 +891,9 @@ class resnet_v1_101_rcnn(Symbol):
                                       op_type='cascade_proposal',
                                       batch_images=cfg.TEST.BATCH_IMAGES,
                                       cfg=cPickle.dumps(cfg),
-                                      stage=2)
+                                      stage=2, name='rois2')
 
-            roi_pool_2nd = mx.contrib.symbol.ROIAlign(
+            roi_pool_2nd = mx.symbol.ROIPooling(
                 name='roi_pool_2nd', data=conv_new_1_relu, rois=rois_2nd, pooled_size=(7, 7), spatial_scale=0.0625)
 
             # generate new rois for second stage regression
@@ -912,8 +912,10 @@ class resnet_v1_101_rcnn(Symbol):
 
             bbox_pred_2nd = mx.symbol.FullyConnected(name='bbox_pred_2nd', data=fc_new_2_2nd_relu,
                                                      num_hidden=num_reg_classes * 4)
+            bbox_pred_2nd = mx.sym.Reshape(data=bbox_pred_2nd, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
+                                       name='bbox_pred_2nd_reshape')
 
-            group = mx.sym.Group([rois, cls_prob, bbox_pred, cls_prob_2nd, bbox_pred_2nd])
+            group = mx.sym.Group([rois, cls_prob, bbox_pred, rois_2nd, cls_prob_2nd, bbox_pred_2nd])
 
 
 
@@ -1044,7 +1046,7 @@ class resnet_v1_101_rcnn(Symbol):
                                                 grad_scale=1.0)
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
-                bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+                bbox_loss = 2 * mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
 
             # reshape output
             cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TRAIN.BATCH_IMAGES, -1, num_classes),
@@ -1075,6 +1077,16 @@ class resnet_v1_101_rcnn(Symbol):
         arg_params['bbox_pred_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bbox_pred_weight'])
         arg_params['bbox_pred_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['bbox_pred_bias'])
 
+        arg_params['fc_new_1_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_1_2nd_weight'])
+        arg_params['fc_new_1_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fc_new_1_2nd_bias'])
+        arg_params['fc_new_2_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_2_2nd_weight'])
+        arg_params['fc_new_2_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fc_new_2_2nd_bias'])
+        arg_params['cls_score_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['cls_score_2nd_weight'])
+        arg_params['cls_score_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['cls_score_2nd_bias'])
+        arg_params['bbox_pred_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bbox_pred_2nd_weight'])
+        arg_params['bbox_pred_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['bbox_pred_2nd_bias'])
+
+    def init_weight_cascade_stage_2(self, cfg, arg_params, aux_params):
         arg_params['fc_new_1_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_1_2nd_weight'])
         arg_params['fc_new_1_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fc_new_1_2nd_bias'])
         arg_params['fc_new_2_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_2_2nd_weight'])

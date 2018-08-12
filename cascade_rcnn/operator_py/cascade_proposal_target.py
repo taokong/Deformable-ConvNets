@@ -1,9 +1,9 @@
 # --------------------------------------------------------
 # Deformable Convolutional Networks
 # Copyright (c) 2016 by Contributors
-# Copyright (c) 2017 Microsoft
+# Copyright (c) 2018 Microsoft
 # Licensed under The Apache-2.0 License [see LICENSE for details]
-# Modified by Yuwen Xiong
+# Modified by Tao Kong
 # --------------------------------------------------------
 
 """
@@ -16,7 +16,7 @@ from distutils.util import strtobool
 from easydict import EasyDict as edict
 import cPickle
 import numpy.random as npr
-from bbox.bbox_transform import bbox_overlaps, bbox_transform, nonlinear_pred, clip_boxes
+from bbox.bbox_transform import bbox_overlaps, bbox_transform, bbox_pred, clip_boxes
 from bbox.bbox_regression import expand_bbox_regression_targets
 
 DEBUG = False
@@ -52,7 +52,8 @@ def sample_rois(rois, rois_per_image, num_classes, cfg,
 
 
     # set labels of bg_rois to be 0
-    labels[(overlaps<bg_thresh_hi)&(overlaps>= cfg.TRAIN.BG_THRESH_LO)] = 0
+    bg_inds = np.where(overlaps < bg_thresh_hi)[0]
+    labels[bg_inds] = 0
 
     # load or compute bbox_target
     if bbox_targets is not None:
@@ -120,10 +121,18 @@ class CascadeProposalTargetOperator(mx.operator.CustomOp):
 
         all_rois_off *= stds
         all_rois_off += means
-        all_rois_pred = nonlinear_pred(all_rois[:, 1:5], all_rois_off[:, 4:8])
+        all_rois_pred = bbox_pred(all_rois[:, 1:5], all_rois_off[:, 4:8])
         all_rois_pred = clip_boxes(all_rois_pred, im_info[:2])
         zeros = np.zeros((all_rois_pred.shape[0], 1), dtype=all_rois_pred.dtype)
         all_rois_pred = np.hstack((zeros, all_rois_pred))
+
+
+        # avoid invalid bboxes
+        all_rois_pred = np.nan_to_num(all_rois_pred)
+        ws = all_rois_pred[:, 3] - all_rois_pred[:, 1]
+        hs = all_rois_pred[:, 4] - all_rois_pred[:, 2]
+        all_rois_pred[ws < 0, 3] = all_rois_pred[ws < 0, 1]
+        all_rois_pred[hs < 0, 4] = all_rois_pred[hs < 0, 2]
 
         rois, labels, bbox_targets, bbox_weights = \
             sample_rois(all_rois_pred, rois_per_image, self._num_classes, self._cfg, gt_boxes=gt_boxes, stage = self._stage)

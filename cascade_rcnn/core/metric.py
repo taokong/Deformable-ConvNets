@@ -32,7 +32,7 @@ def get_rcnn_names_2nd(cfg):
     if cfg.TRAIN.ENABLE_OHEM or cfg.TRAIN.END2END:
         pred.append('rcnn_label_2nd')
     if cfg.TRAIN.END2END:
-        rpn_pred, rpn_label = get_rpn_names()
+        rpn_pred, rpn_label = get_rcnn_names(cfg)
         pred = rpn_pred + pred
         label = rpn_label
     return pred, label

@@ -87,7 +87,7 @@ def nonlinear_transform(ex_rois, gt_rois):
     return targets
 
 
-def nonlinear_pred(boxes, box_deltas):
+def nonlinear_pred(boxes, box_deltas, dwh_clip=np.log(1000. / 16.)):
     """
     Transform the set of class-agnostic boxes into class-specific boxes
     by applying the predicted offsets (box_deltas)
@@ -108,6 +108,9 @@ def nonlinear_pred(boxes, box_deltas):
     dy = box_deltas[:, 1::4]
     dw = box_deltas[:, 2::4]
     dh = box_deltas[:, 3::4]
+
+    # dw = np.minimum(dw, dwh_clip)
+    # dh = np.minimum(dh, dwh_clip)
 
     pred_ctr_x = dx * widths[:, np.newaxis] + ctr_x[:, np.newaxis]
     pred_ctr_y = dy * heights[:, np.newaxis] + ctr_y[:, np.newaxis]

@@ -18,7 +18,7 @@ config.symbol = ''
 config.gpus = ''
 config.CLASS_AGNOSTIC = True
 config.SCALES = [(600, 1000)]  # first is scale (the shorter side); second is max size
-
+config.BBOX_XFORM_CLIP = np.log(1000. / 16.)
 # default training
 config.default = edict()
 config.default.frequent = 20

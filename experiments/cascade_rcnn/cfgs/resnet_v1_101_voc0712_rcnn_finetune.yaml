@@ -1,6 +1,6 @@
 ---
 MXNET_VERSION: "mxnet"
-output_path: "./output/cascade_end2end/voc"
+output_path: "./output/cascade_finetune/voc"
 symbol: resnet_v1_101_rcnn
 gpus: '0,1,2,3'
 CLASS_AGNOSTIC: True
@@ -11,8 +11,8 @@ default:
   frequent: 100
   kvstore: device
 network:
-  pretrained: "./model/pretrained_model/resnet_v1_101"
-  pretrained_epoch: 0
+  pretrained: "./output/rcnn/voc/resnet_v1_101_voc0712_rcnn_end2end/2007_trainval_2012_trainval/rcnn_voc"
+  pretrained_epoch: 7
   PIXEL_MEANS:
   - 103.06
   - 115.90
@@ -25,6 +25,10 @@ network:
   - bn_conv1
   - res2
   - bn2
+  - res3
+  - bn3
+  - res4
+  - bn4
   - gamma
   - beta
   FIXED_PARAMS_SHARED:
@@ -56,7 +60,7 @@ dataset:
   test_image_set: 2007_test
   proposal: rpn
 TRAIN:
-  finetune: False
+  finetune: True
   lr: 0.0005
   lr_step: '4.83'
   warmup: true

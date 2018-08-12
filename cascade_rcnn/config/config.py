@@ -51,6 +51,7 @@ config.dataset.NUM_CLASSES = 21
 config.TRAIN = edict()
 
 config.TRAIN.lr = 0
+config.TRAIN.finetune = False
 config.TRAIN.lr_step = ''
 config.TRAIN.lr_factor = 0.1
 config.TRAIN.warmup = False
