@@ -131,6 +131,7 @@ def im_detect(predictor, data_batch, data_names, scales, cfg):
         if cfg.TEST.HAS_RPN:
             rois = output['rois_output'].asnumpy()[:, 1:]
             rois_2nd = output['rois2_output'].asnumpy()[:, 1:]
+            rois_3rd = output['rois3_output'].asnumpy()[:, 1:]
         else:
             rois = data_dict['rois'].asnumpy().reshape((-1, 5))[:, 1:]
 
@@ -139,25 +140,40 @@ def im_detect(predictor, data_batch, data_names, scales, cfg):
         # save output
         scores = output['cls_prob_reshape_output'].asnumpy()[0]
         scores_2nd = output['cls_prob_2nd_reshape_output'].asnumpy()[0]
-        scores = (scores + scores_2nd) * 0.5
+        scores_3rd = output['cls_prob_3rd_reshape_output'].asnumpy()[0]
+        scores = (scores + scores_2nd + scores_3rd) * 1.0 / 3.0
 
         bbox_deltas = output['bbox_pred_reshape_output'].asnumpy()[0]
         bbox_deltas_2nd = output['bbox_pred_2nd_reshape_output'].asnumpy()[0]
+        bbox_deltas_3rd = output['bbox_pred_3rd_reshape_output'].asnumpy()[0]
 
         num_reg_classes = (2 if cfg.CLASS_AGNOSTIC else cfg.dataset.NUM_CLASSES)
+
         stds_2nd = np.tile(
-            np.array(cfg.TRAIN.BBOX_STDS_2nd), (num_reg_classes))
+            np.array(cfg.TRAIN.BBOX_STDS_2), (num_reg_classes))
         means_2nd = np.tile(
             np.array(cfg.TRAIN.BBOX_MEANS), (num_reg_classes))
 
         bbox_deltas_2nd *= stds_2nd
         bbox_deltas_2nd += means_2nd
 
+
+        stds_3rd = np.tile(
+            np.array(cfg.TRAIN.BBOX_STDS_3), (num_reg_classes))
+        means_3rd = np.tile(
+            np.array(cfg.TRAIN.BBOX_MEANS), (num_reg_classes))
+
+        bbox_deltas_3rd *= stds_3rd
+        bbox_deltas_3rd += means_3rd
+
         # post processing
         # pred_boxes = bbox_pred(rois, bbox_deltas)
         # pred_boxes = clip_boxes(pred_boxes, im_shape[-2:])
 
-        pred_boxes = bbox_pred(rois_2nd, bbox_deltas_2nd)
+        # pred_boxes = bbox_pred(rois_2nd, bbox_deltas_2nd)
+        # pred_boxes = clip_boxes(pred_boxes, im_shape[-2:])
+
+        pred_boxes = bbox_pred(rois_3rd, bbox_deltas_3rd)
         pred_boxes = clip_boxes(pred_boxes, im_shape[-2:])
 
         # we used scaled image & roi to train, so it is necessary to transform them back

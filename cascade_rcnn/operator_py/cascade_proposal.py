@@ -43,6 +43,16 @@ class CascadeProposalOperator(mx.operator.CustomOp):
         # Sanity check: single batch only
         assert np.all(all_rois[:, 0] == 0), 'Only single item batches are supported'
 
+        if int(self._stage) == 3:
+            num_reg_classes = (2 if self._cfg.CLASS_AGNOSTIC else self._cfg.dataset.NUM_CLASSES)
+            stds_2nd = np.tile(
+                np.array(self._cfg.TRAIN.BBOX_STDS_2nd), (num_reg_classes))
+            means_2nd = np.tile(
+                np.array(self._cfg.TRAIN.BBOX_MEANS), (num_reg_classes))
+
+            all_rois_off *= stds_2nd
+            all_rois_off += means_2nd
+
         # generate new bbox result
         all_rois_pred = bbox_pred(all_rois[:, 1:5], all_rois_off[:, 4:8])
         all_rois_pred = clip_boxes(all_rois_pred, im_info[:2])

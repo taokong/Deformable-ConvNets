@@ -423,34 +423,30 @@ class PascalVOC(IMDB):
         annopath = os.path.join(self.data_path, 'Annotations', '{0!s}.xml')
         imageset_file = os.path.join(self.data_path, 'ImageSets', 'Main', self.image_set + '.txt')
         annocache = os.path.join(self.cache_path, self.name + '_annotations.pkl')
-        aps = []
+
         # The PASCAL VOC metric changed in 2010
         use_07_metric = True if self.year == 'SDS' or int(self.year) < 2010 else False
         print 'VOC07 metric? ' + ('Y' if use_07_metric else 'No')
         info_str += 'VOC07 metric? ' + ('Y' if use_07_metric else 'No')
         info_str += '\n'
-        for cls_ind, cls in enumerate(self.classes):
-            if cls == '__background__':
-                continue
-            filename = self.get_result_file_template().format(cls)
-            rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
-                                     ovthresh=0.5, use_07_metric=use_07_metric)
-            aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
-            info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
-        print('Mean AP@0.5 = {:.4f}'.format(np.mean(aps)))
-        info_str += 'Mean AP@0.5 = {:.4f}\n\n'.format(np.mean(aps))
-        # @0.7
-        aps = []
-        for cls_ind, cls in enumerate(self.classes):
-            if cls == '__background__':
-                continue
-            filename = self.get_result_file_template().format(cls)
-            rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
-                                     ovthresh=0.7, use_07_metric=use_07_metric)
-            aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
-            info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
-        print('Mean AP@0.7 = {:.4f}'.format(np.mean(aps)))
-        info_str += 'Mean AP@0.7 = {:.4f}'.format(np.mean(aps))
+        ious = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+        aps_all = [0] * len(ious)
+        for i, iou in enumerate(ious):
+            aps = []
+            for cls_ind, cls in enumerate(self.classes):
+                if cls == '__background__':
+                    continue
+                filename = self.get_result_file_template().format(cls)
+                rec, prec, ap = voc_eval(filename, annopath, imageset_file, cls, annocache,
+                                         ovthresh=iou, use_07_metric=use_07_metric)
+                aps += [ap]
+            # print('AP for {} = {:.4f}'.format(cls, ap))
+            # info_str += 'AP for {} = {:.4f}\n'.format(cls, ap)
+            print('Mean AP@{:.2f} = {:.4f}'.format(iou, np.mean(aps)))
+            info_str += 'Mean AP@{:.2f} = {:.4f}\n\n'.format(iou, np.mean(aps))
+            aps_all[i] = np.mean(aps)
+
+        print('Mean AP@0.50-0.95 = {:.4f}'.format(np.mean(aps_all)))
+        info_str += 'Mean AP@0.50-0.95 = {:.4f}'.format(np.mean(aps_all))
+
         return info_str

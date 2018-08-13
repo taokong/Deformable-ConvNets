@@ -822,10 +822,9 @@ class resnet_v1_101_rcnn(Symbol):
                 bbox_loss = 2 * mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
                 rcnn_label = label
 
-            # pred result
+            ####################### stage 2 #################################################
             bbox_pred_reshape = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_pred_reshape')
-
             # (self, num_classes, batch_images, batch_rois, cfg, fg_fraction='0.25', stage=2):
             rois_2nd, label_2nd, bbox_target_2nd, bbox_weight_2nd = mx.sym.Custom(rois=rois,
                                                                                   bbox_offset = bbox_pred_reshape,
@@ -838,12 +837,10 @@ class resnet_v1_101_rcnn(Symbol):
                                                                                   cfg=cPickle.dumps(cfg),
                                                                                   fg_fraction=cfg.TRAIN.FG_FRACTION,
                                                                                   stage=2)
-
             roi_pool_2nd = mx.symbol.ROIPooling(
                 name='roi_pool_2nd', data=conv_new_1_relu, rois=rois_2nd, pooled_size=(7, 7), spatial_scale=0.0625)
 
-            # generate new rois for second stage regression
-            # 2nd head
+
             fc_new_1_2nd = mx.symbol.FullyConnected(name='fc_new_1_2nd', data=roi_pool_2nd, num_hidden=1024)
             fc_new_1_2nd_relu = mx.sym.Activation(data=fc_new_1_2nd, act_type='relu', name='fc_new_1_2nd_relu')
 
@@ -861,6 +858,44 @@ class resnet_v1_101_rcnn(Symbol):
             bbox_loss_2nd = 2 * mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label_2nd = label_2nd
 
+            ####################### stage 3 #################################################
+            bbox_pred_2nd_reshape = mx.sym.Reshape(data=bbox_pred_2nd, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
+                                               name='bbox_pred_2nd_reshape')
+            # (self, num_classes, batch_images, batch_rois, cfg, fg_fraction='0.25', stage=2):
+            rois_3rd, label_3rd, bbox_target_3rd, bbox_weight_3rd = mx.sym.Custom(rois=rois_2nd,
+                                                                                  bbox_offset=bbox_pred_2nd_reshape,
+                                                                                  gt_boxes=gt_boxes_reshape,
+                                                                                  im_info=im_info,
+                                                                                  op_type='cascade_proposal_target',
+                                                                                  num_classes=num_reg_classes,
+                                                                                  batch_images=cfg.TRAIN.BATCH_IMAGES,
+                                                                                  batch_rois=cfg.TRAIN.BATCH_ROIS,
+                                                                                  cfg=cPickle.dumps(cfg),
+                                                                                  fg_fraction=cfg.TRAIN.FG_FRACTION,
+                                                                                  stage=3)
+            roi_pool_3rd = mx.symbol.ROIPooling(
+                name='roi_pool_3rd', data=conv_new_1_relu, rois=rois_2nd, pooled_size=(7, 7), spatial_scale=0.0625)
+
+            fc_new_1_3rd = mx.symbol.FullyConnected(name='fc_new_1_3rd', data=roi_pool_3rd, num_hidden=1024)
+            fc_new_1_3rd_relu = mx.sym.Activation(data=fc_new_1_3rd, act_type='relu', name='fc_new_1_3rd_relu')
+
+            fc_new_2_3rd = mx.symbol.FullyConnected(name='fc_new_2_3rd', data=fc_new_1_3rd_relu, num_hidden=1024)
+            fc_new_2_3rd_relu = mx.sym.Activation(data=fc_new_2_3rd, act_type='relu', name='fc_new_2_3rd_relu')
+
+            cls_score_3rd = mx.symbol.FullyConnected(name='cls_score_3rd', data=fc_new_2_3rd_relu,
+                                                     num_hidden=num_classes)
+            bbox_pred_3rd = mx.symbol.FullyConnected(name='bbox_pred_3rd', data=fc_new_2_3rd_relu,
+                                                     num_hidden=num_reg_classes * 4)
+
+            cls_prob_3rd = mx.sym.SoftmaxOutput(name='cls_prob_3rd', data=cls_score_3rd, label=label_3rd,
+                                                normalization='valid')
+            bbox_loss_3rd_ = bbox_weight_3rd * mx.sym.smooth_l1(name='bbox_loss_3rd_', scalar=1.0,
+                                                                data=(bbox_pred_3rd - bbox_target_3rd))
+            bbox_loss_3rd = 2 * mx.sym.MakeLoss(name='bbox_loss_3rd', data=bbox_loss_3rd_,
+                                                grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+            rcnn_label_3rd = label_3rd
+            ##################################################################################
+
 
             # reshape output
             rcnn_label = mx.sym.Reshape(data=rcnn_label, shape=(cfg.TRAIN.BATCH_IMAGES, -1), name='label_reshape')
@@ -876,7 +911,19 @@ class resnet_v1_101_rcnn(Symbol):
             bbox_loss_2nd = mx.sym.Reshape(data=bbox_loss_2nd, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_2nd_reshape')
 
-            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label), cls_prob_2nd, bbox_loss_2nd, mx.sym.BlockGrad(rcnn_label_2nd)])
+            # reshape output: 3rd
+            rcnn_label_3rd = mx.sym.Reshape(data=rcnn_label_3rd, shape=(cfg.TRAIN.BATCH_IMAGES, -1),
+                                            name='label_3rd_reshape')
+            cls_prob_3rd = mx.sym.Reshape(data=cls_prob_3rd, shape=(cfg.TRAIN.BATCH_IMAGES, -1, num_classes),
+                                          name='cls_prob_3rd_reshape')
+            bbox_loss_3rd = mx.sym.Reshape(data=bbox_loss_3rd, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
+                                           name='bbox_loss_3rd_reshape')
+
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss,
+                                  cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label),
+                                  cls_prob_2nd, bbox_loss_2nd, mx.sym.BlockGrad(rcnn_label_2nd),
+                                  cls_prob_3rd, bbox_loss_3rd, mx.sym.BlockGrad(rcnn_label_3rd)])
+
 
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
@@ -885,6 +932,8 @@ class resnet_v1_101_rcnn(Symbol):
             bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_pred_reshape')
 
+
+            ####################### stage 2 #################################################
             rois_2nd = mx.sym.Custom(rois=rois,
                                       bbox_offset=bbox_pred,
                                       im_info=im_info,
@@ -915,7 +964,42 @@ class resnet_v1_101_rcnn(Symbol):
             bbox_pred_2nd = mx.sym.Reshape(data=bbox_pred_2nd, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_pred_2nd_reshape')
 
-            group = mx.sym.Group([rois, cls_prob, bbox_pred, rois_2nd, cls_prob_2nd, bbox_pred_2nd])
+            ####################### stage 3 #################################################
+            rois_3rd = mx.sym.Custom(rois=rois_2nd,
+                                     bbox_offset=bbox_pred_2nd,
+                                     im_info=im_info,
+                                     op_type='cascade_proposal',
+                                     batch_images=cfg.TEST.BATCH_IMAGES,
+                                     cfg=cPickle.dumps(cfg),
+                                     stage=3, name='rois3')
+
+            roi_pool_3rd = mx.symbol.ROIPooling(
+                name='roi_pool_3rd', data=conv_new_1_relu, rois=rois_3rd, pooled_size=(7, 7), spatial_scale=0.0625)
+
+            fc_new_1_3rd = mx.symbol.FullyConnected(name='fc_new_1_3rd', data=roi_pool_3rd, num_hidden=1024)
+            fc_new_1_3rd_relu = mx.sym.Activation(data=fc_new_1_3rd, act_type='relu', name='fc_new_1_3rd_relu')
+
+            fc_new_2_3rd = mx.symbol.FullyConnected(name='fc_new_2_3rd', data=fc_new_1_3rd_relu, num_hidden=1024)
+            fc_new_2_3rd_relu = mx.sym.Activation(data=fc_new_2_3rd, act_type='relu', name='fc_new_2_3rd_relu')
+
+            cls_score_3rd = mx.symbol.FullyConnected(name='cls_score_3rd', data=fc_new_2_3rd_relu,
+                                                     num_hidden=num_classes)
+            cls_prob_3rd = mx.sym.SoftmaxActivation(name='cls_prob_3rd', data=cls_score_3rd)
+            cls_prob_3rd = mx.sym.Reshape(data=cls_prob_3rd, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes),
+                                          name='cls_prob_3rd_reshape')
+
+            bbox_pred_3rd = mx.symbol.FullyConnected(name='bbox_pred_3rd', data=fc_new_2_3rd_relu,
+                                                     num_hidden=num_reg_classes * 4)
+            bbox_pred_3rd = mx.sym.Reshape(data=bbox_pred_3rd, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
+                                           name='bbox_pred_3rd_reshape')
+
+
+
+            #################################################################################
+
+            group = mx.sym.Group([rois, cls_prob, bbox_pred,
+                                  rois_2nd, cls_prob_2nd, bbox_pred_2nd,
+                                  rois_3rd, cls_prob_3rd, bbox_pred_3rd])
 
 
 
@@ -1085,6 +1169,17 @@ class resnet_v1_101_rcnn(Symbol):
         arg_params['cls_score_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['cls_score_2nd_bias'])
         arg_params['bbox_pred_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bbox_pred_2nd_weight'])
         arg_params['bbox_pred_2nd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['bbox_pred_2nd_bias'])
+
+        arg_params['fc_new_1_3rd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_1_3rd_weight'])
+        arg_params['fc_new_1_3rd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fc_new_1_3rd_bias'])
+        arg_params['fc_new_2_3rd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_2_3rd_weight'])
+        arg_params['fc_new_2_3rd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fc_new_2_3rd_bias'])
+        arg_params['cls_score_3rd_weight'] = mx.random.normal(0, 0.01,
+                                                              shape=self.arg_shape_dict['cls_score_3rd_weight'])
+        arg_params['cls_score_3rd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['cls_score_3rd_bias'])
+        arg_params['bbox_pred_3rd_weight'] = mx.random.normal(0, 0.01,
+                                                              shape=self.arg_shape_dict['bbox_pred_3rd_weight'])
+        arg_params['bbox_pred_3rd_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['bbox_pred_3rd_bias'])
 
     def init_weight_cascade_stage_2(self, cfg, arg_params, aux_params):
         arg_params['fc_new_1_2nd_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fc_new_1_2nd_weight'])
