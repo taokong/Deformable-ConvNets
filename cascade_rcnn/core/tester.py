@@ -150,7 +150,7 @@ def im_detect(predictor, data_batch, data_names, scales, cfg):
         num_reg_classes = (2 if cfg.CLASS_AGNOSTIC else cfg.dataset.NUM_CLASSES)
 
         stds_2nd = np.tile(
-            np.array(cfg.TRAIN.BBOX_STDS_2), (num_reg_classes))
+            np.array(cfg.TRAIN.BBOX_STDS_2nd), (num_reg_classes))
         means_2nd = np.tile(
             np.array(cfg.TRAIN.BBOX_MEANS), (num_reg_classes))
 
@@ -159,7 +159,7 @@ def im_detect(predictor, data_batch, data_names, scales, cfg):
 
 
         stds_3rd = np.tile(
-            np.array(cfg.TRAIN.BBOX_STDS_3), (num_reg_classes))
+            np.array(cfg.TRAIN.BBOX_STDS_3rd), (num_reg_classes))
         means_3rd = np.tile(
             np.array(cfg.TRAIN.BBOX_MEANS), (num_reg_classes))
 

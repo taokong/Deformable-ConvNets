@@ -135,8 +135,8 @@ config.TRAIN.BBOX_NORMALIZATION_PRECOMPUTED = False
 config.TRAIN.BBOX_MEANS = (0.0, 0.0, 0.0, 0.0)
 #config.TRAIN.BBOX_STDS = (0.1, 0.1, 0.2, 0.2)
 config.TRAIN.BBOX_STDS_1st = (0.1, 0.1, 0.2, 0.2)
-config.TRAIN.BBOX_STDS_2nd = (0.1, 0.1, 0.2, 0.2)
-config.TRAIN.BBOX_STDS_3rd = (0.05, 0.05, 0.1, 0.1)
+config.TRAIN.BBOX_STDS_2nd = (0.05, 0.05, 0.1, 0.1)
+config.TRAIN.BBOX_STDS_3rd = (0.033, 0.033, 0.067, 0.067)
 config.TEST = edict()
 
 # R-CNN testing

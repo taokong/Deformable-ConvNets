@@ -819,7 +819,7 @@ class resnet_v1_101_rcnn(Symbol):
                 cls_prob = mx.sym.SoftmaxOutput(name='cls_prob', data=cls_score, label=label, normalization='valid')
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
-                bbox_loss = 2 * mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+                bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
                 rcnn_label = label
 
             ####################### stage 2 #################################################
@@ -855,7 +855,7 @@ class resnet_v1_101_rcnn(Symbol):
             cls_prob_2nd = mx.sym.SoftmaxOutput(name='cls_prob_2nd', data=cls_score_2nd, label=label_2nd, normalization='valid')
             bbox_loss_2nd_ = bbox_weight_2nd * mx.sym.smooth_l1(name='bbox_loss_2nd_', scalar=1.0,
                                                         data=(bbox_pred_2nd - bbox_target_2nd))
-            bbox_loss_2nd = 2 * mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+            bbox_loss_2nd = mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label_2nd = label_2nd
 
             ####################### stage 3 #################################################
@@ -891,7 +891,7 @@ class resnet_v1_101_rcnn(Symbol):
                                                 normalization='valid')
             bbox_loss_3rd_ = bbox_weight_3rd * mx.sym.smooth_l1(name='bbox_loss_3rd_', scalar=1.0,
                                                                 data=(bbox_pred_3rd - bbox_target_3rd))
-            bbox_loss_3rd = 2 * mx.sym.MakeLoss(name='bbox_loss_3rd', data=bbox_loss_3rd_,
+            bbox_loss_3rd = mx.sym.MakeLoss(name='bbox_loss_3rd', data=bbox_loss_3rd_,
                                                 grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label_3rd = label_3rd
             ##################################################################################
@@ -1130,7 +1130,7 @@ class resnet_v1_101_rcnn(Symbol):
                                                 grad_scale=1.0)
                 bbox_loss_ = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_', scalar=1.0,
                                                             data=(bbox_pred - bbox_target))
-                bbox_loss = 2 * mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+                bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
 
             # reshape output
             cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TRAIN.BATCH_IMAGES, -1, num_classes),
