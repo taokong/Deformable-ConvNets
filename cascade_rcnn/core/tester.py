@@ -141,6 +141,7 @@ def im_detect(predictor, data_batch, data_names, scales, cfg):
         scores = output['cls_prob_reshape_output'].asnumpy()[0]
         scores_2nd = output['cls_prob_2nd_reshape_output'].asnumpy()[0]
         scores_3rd = output['cls_prob_3rd_reshape_output'].asnumpy()[0]
+        # scores = (scores + scores_2nd) * 0.5
         scores = (scores + scores_2nd + scores_3rd) * 1.0 / 3.0
 
         bbox_deltas = output['bbox_pred_reshape_output'].asnumpy()[0]

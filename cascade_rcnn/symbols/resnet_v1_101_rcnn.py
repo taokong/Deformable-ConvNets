@@ -852,10 +852,10 @@ class resnet_v1_101_rcnn(Symbol):
             bbox_pred_2nd = mx.symbol.FullyConnected(name='bbox_pred_2nd', data=fc_new_2_2nd_relu,
                                                      num_hidden=num_reg_classes * 4)
 
-            cls_prob_2nd = mx.sym.SoftmaxOutput(name='cls_prob_2nd', data=cls_score_2nd, label=label_2nd, normalization='valid')
+            cls_prob_2nd = 0.5 * mx.sym.SoftmaxOutput(name='cls_prob_2nd', data=cls_score_2nd, label=label_2nd, normalization='valid')
             bbox_loss_2nd_ = bbox_weight_2nd * mx.sym.smooth_l1(name='bbox_loss_2nd_', scalar=1.0,
                                                         data=(bbox_pred_2nd - bbox_target_2nd))
-            bbox_loss_2nd = mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
+            bbox_loss_2nd = 0.5 * mx.sym.MakeLoss(name='bbox_loss_2nd', data=bbox_loss_2nd_, grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label_2nd = label_2nd
 
             ####################### stage 3 #################################################
@@ -887,11 +887,11 @@ class resnet_v1_101_rcnn(Symbol):
             bbox_pred_3rd = mx.symbol.FullyConnected(name='bbox_pred_3rd', data=fc_new_2_3rd_relu,
                                                      num_hidden=num_reg_classes * 4)
 
-            cls_prob_3rd = mx.sym.SoftmaxOutput(name='cls_prob_3rd', data=cls_score_3rd, label=label_3rd,
+            cls_prob_3rd = 0.25 * mx.sym.SoftmaxOutput(name='cls_prob_3rd', data=cls_score_3rd, label=label_3rd,
                                                 normalization='valid')
             bbox_loss_3rd_ = bbox_weight_3rd * mx.sym.smooth_l1(name='bbox_loss_3rd_', scalar=1.0,
                                                                 data=(bbox_pred_3rd - bbox_target_3rd))
-            bbox_loss_3rd = mx.sym.MakeLoss(name='bbox_loss_3rd', data=bbox_loss_3rd_,
+            bbox_loss_3rd = 0.25 * mx.sym.MakeLoss(name='bbox_loss_3rd', data=bbox_loss_3rd_,
                                                 grad_scale=1.0 / cfg.TRAIN.BATCH_ROIS)
             rcnn_label_3rd = label_3rd
             ##################################################################################
